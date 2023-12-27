@@ -37,6 +37,7 @@ def perform_upload(config: ConfigModel, client: Client, progress: Progress) -> s
     This checks that the device can receive the configuration, uploads it, resets the device, and then waits for the
     device to become available again.
     """
+    # Check that the device is connectable and has a version that is supported.
     about = get_device_version(config, client, progress)
     if about is None:
         return (
@@ -53,6 +54,7 @@ def perform_upload(config: ConfigModel, client: Client, progress: Progress) -> s
             f":x: [logging.level.error]The device at http://{slugify(config.device.name)}.{config.device.domain} "
             "did not respond with the current version. Please update the device first."
         )
+    # Upload the core configuration file.
     task = progress.add_task("Uploading the configuration", total=2)
     response = client.put(
         f"http://{slugify(config.device.name)}.{config.device.domain}/update/file",
@@ -69,6 +71,7 @@ def perform_upload(config: ConfigModel, client: Client, progress: Progress) -> s
         progress.update(task, advance=1)
     else:
         return f":x: [logging.level.error]Received error {response.status_code} when uploading the configuration."
+    # Upload the entities file.
     response = client.put(
         f"http://{slugify(config.device.name)}.{config.device.domain}/update/file",
         content=dumps(config.entities),
@@ -78,7 +81,8 @@ def perform_upload(config: ConfigModel, client: Client, progress: Progress) -> s
         progress.update(task, advance=1)
     else:
         return f":x: [logging.level.error]Received error {response.status_code} uploading the entities"
-    task = progress.add_task("Restarting the device", total=12, start=False)
+    # Reset the device and wait for it to become available again.
+    task = progress.add_task("Resetting the device", total=12, start=False)
     response = client.post(
         f"http://{slugify(config.device.name)}.{config.device.domain}/reset",
         content=dumps(config.entities),
