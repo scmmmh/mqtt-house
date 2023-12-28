@@ -14,6 +14,14 @@ Request.max_content_length = 1024 * 1024
 server = Microdot()
 
 
+def file_exists(filename):
+    """Check if the given file exists."""
+    try:
+        return (os.stat(filename)[0] & 0x4000) == 0
+    except OSError:
+        return False
+
+
 @server.get("/about")
 def get_about(request):
     """Return information about this device."""
@@ -74,13 +82,17 @@ async def update_file(request):
 @server.post("/ota/commit")
 async def commit_update(request):
     """Commit the update specified by the inventory.json."""
-    with open("inventory.json") as in_f:
-        inventory = json.load(in_f)
-    for filename in inventory.keys():
-        os.remove(filename)
-        os.rename(f"{filename}.tmp", filename)
-    os.remove("inventory.json")
-    return None, 204
+    if file_exists("inventory.json"):
+        with open("inventory.json") as in_f:
+            inventory = json.load(in_f)
+        for filename in inventory.keys():
+            if file_exists(filename):
+                os.remove(filename)
+            os.rename(f"{filename}.tmp", filename)
+        os.remove("inventory.json")
+        return None, 204
+    else:
+        return None, 404
 
 
 def slugify(name):
