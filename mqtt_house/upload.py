@@ -1,19 +1,18 @@
 """CLI commands for handling configurations."""
+from hashlib import sha256
+from importlib.resources import open_binary
 from json import dumps
 from time import sleep
 
-from httpx import Client, TransportError, codes
+from httpx import Client, Response, TransportError, codes
 from rich.progress import Progress
-from typer import FileBinaryRead, Typer
+from typer import FileBinaryRead
 from yaml import safe_load
 
 from mqtt_house.__about__ import __version__
 from mqtt_house.base import app, console
 from mqtt_house.settings import ConfigModel
 from mqtt_house.util import slugify
-
-config_group = Typer()
-app.add_typer(config_group, name="config")
 
 
 def get_device_version(config: ConfigModel, client: Client, progress: Progress) -> dict | None:
@@ -29,6 +28,15 @@ def get_device_version(config: ConfigModel, client: Client, progress: Progress) 
         progress.start_task(task)
         progress.update(task, advance=1)
     return None
+
+
+def upload_data(config: ConfigModel, client: Client, filename: str, data: bytes) -> Response:
+    accumulator = sha256(data)
+    return client.put(
+        f"http://{slugify(config.device.name)}.{config.device.domain}/update/file",
+        content=data,
+        headers={"X-Filename": filename, "X-Filehash": accumulator.hexdigest()},
+    )
 
 
 def perform_upload(config: ConfigModel, client: Client, progress: Progress) -> str:
@@ -54,45 +62,44 @@ def perform_upload(config: ConfigModel, client: Client, progress: Progress) -> s
             f":x: [logging.level.error]The device at http://{slugify(config.device.name)}.{config.device.domain} "
             "did not respond with the current version. Please update the device first."
         )
-    # Upload the core configuration file.
-    task = progress.add_task("Uploading the configuration", total=2)
-    response = client.put(
-        f"http://{slugify(config.device.name)}.{config.device.domain}/update/file",
-        content=dumps(
-            {
-                "device": config.device.model_dump(),
-                "mqtt": config.mqtt.model_dump(),
-                "wifi": config.wifi.model_dump(),
-            }
-        ),
-        headers={"X-Filename": "config.json"},
+    files = []
+    # Add the config files to upload
+    files.append(
+        (
+            "config.json",
+            dumps(
+                {
+                    "device": config.device.model_dump(),
+                    "mqtt": config.mqtt.model_dump(),
+                    "wifi": config.wifi.model_dump(),
+                }
+            ).encode(),
+        )
     )
-    if response.status_code == codes.NO_CONTENT:
-        progress.update(task, advance=1)
-    else:
-        return f":x: [logging.level.error]Received error {response.status_code} when uploading the configuration."
-    # Upload the entities file.
-    response = client.put(
-        f"http://{slugify(config.device.name)}.{config.device.domain}/update/file",
-        content=dumps(config.entities),
-        headers={"X-Filename": "entities.json"},
-    )
-    if response.status_code == codes.NO_CONTENT:
-        progress.update(task, advance=1)
-    else:
-        return f":x: [logging.level.error]Received error {response.status_code} uploading the entities"
+    files.append(("entities.json", dumps(config.entities).encode()))
+    for filename in ["main.py", "microdot.py", "mqtt_as.py"]:
+        with open_binary("mqtt_house.micro", filename) as in_f:
+            files.append((filename, in_f.read()))
+    # Upload the files
+    task = progress.add_task("Uploading the configuration", total=len(files))
+    for filename, data in files:
+        response = upload_data(config, client, filename, data)
+        if response.status_code == codes.NO_CONTENT:
+            progress.update(task, advance=1)
+        else:
+            return f":x: [logging.level.error]Received error {response.status_code} when uploading the {filename}."
     # Reset the device and wait for it to become available again.
-    task = progress.add_task("Resetting the device", total=12, start=False)
+    task = progress.add_task("Resetting the device", total=60, start=False)
     response = client.post(
         f"http://{slugify(config.device.name)}.{config.device.domain}/reset",
         content=dumps(config.entities),
     )
     progress.start_task(task)
     if response.status_code == codes.ACCEPTED:
-        countdown = 12
+        countdown = 60
         success = False
         while countdown > 0:
-            sleep(5)
+            sleep(1)
             try:
                 response = client.get(f"http://{slugify(config.device.name)}.{config.device.domain}/about")
                 if response.status_code == codes.OK and response.json()["version"] == "0.0.1":
@@ -103,7 +110,7 @@ def perform_upload(config: ConfigModel, client: Client, progress: Progress) -> s
             finally:
                 countdown = countdown - 1
                 progress.update(task, advance=1)
-        progress.update(task, completed=12)
+        progress.update(task, completed=60)
         if success:
             return ":heavy_check_mark: [green]The device has been updated with the new configuration."
         else:
@@ -112,11 +119,11 @@ def perform_upload(config: ConfigModel, client: Client, progress: Progress) -> s
                 " did not reappear within one minute after resetting."
             )
     else:
-        progress.update(task, completed=12)
+        progress.update(task, completed=60)
         return ":x: [logging.level.error]Received error {response.status_code} when trying to reset the device."
 
 
-@config_group.command()
+@app.command()
 def upload(config_file: FileBinaryRead):
     """Upload a configuration to the device."""
     config = ConfigModel(**safe_load(config_file))

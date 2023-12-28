@@ -1,12 +1,16 @@
 """The main microcontroller script."""
 import asyncio
+import binascii
 import json
+import os
 import re
 
+from hashlib import sha256
 from machine import Pin, reset
-from microdot import Microdot
+from microdot import Microdot, Request
 from mqtt_as import MQTTClient, config
 
+Request.max_content_length = 1024 * 1024
 server = Microdot()
 
 
@@ -33,12 +37,20 @@ def post_reset(request):
 async def put_update_file(request):
     """Update a file on the device."""
     size = int(request.headers["Content-Length"])
-    with open(request.headers["X-Filename"], "wb") as out_f:
+    upload_hash = request.headers["X-Filehash"]
+    hash = sha256()
+    with open(f"{request.headers['X-Filename']}.tmp", "wb") as out_f:
         while size > 0:
             chunk = await request.stream.read(min(size, 1024))
+            hash.update(chunk)
             out_f.write(chunk)
             size -= len(chunk)
-    return None, 204
+    if binascii.hexlify(hash.digest()).decode() == upload_hash:
+        os.rename(f"{request.headers['X-Filename']}.tmp", request.headers['X-Filename'])
+        return None, 204
+    else:
+        os.remove(f"{request.headers['X-Filename']}.tmp")
+        return "File hashes do not match", 400
 
 
 def slugify(name):
