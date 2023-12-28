@@ -33,8 +33,27 @@ def post_reset(request):
     return None, 202
 
 
-@server.put("/update/file")
-async def put_update_file(request):
+@server.put("/ota/inventory")
+async def update_file(request):
+    """Upload the OTA inventory."""
+    size = int(request.headers["Content-Length"])
+    upload_hash = request.headers["X-Filehash"]
+    hash = sha256()
+    with open("inventory.json", "wb") as out_f:
+        while size > 0:
+            chunk = await request.stream.read(min(size, 1024))
+            hash.update(chunk)
+            out_f.write(chunk)
+            size -= len(chunk)
+    if binascii.hexlify(hash.digest()).decode() == upload_hash:
+        return None, 204
+    else:
+        os.remove("inventory.json")
+        return "Inventory hash does not match", 400
+
+
+@server.put("/ota/file")
+async def update_file(request):
     """Update a file on the device."""
     size = int(request.headers["Content-Length"])
     upload_hash = request.headers["X-Filehash"]
@@ -46,11 +65,22 @@ async def put_update_file(request):
             out_f.write(chunk)
             size -= len(chunk)
     if binascii.hexlify(hash.digest()).decode() == upload_hash:
-        os.rename(f"{request.headers['X-Filename']}.tmp", request.headers['X-Filename'])
         return None, 204
     else:
         os.remove(f"{request.headers['X-Filename']}.tmp")
-        return "File hashes do not match", 400
+        return "File hash does not match", 400
+
+
+@server.post("/ota/commit")
+async def commit_update(request):
+    """Commit the update specified by the inventory.json."""
+    with open("inventory.json") as in_f:
+        inventory = json.load(in_f)
+    for filename in inventory.keys():
+        os.remove(filename)
+        os.rename(f"{filename}.tmp", filename)
+    os.remove("inventory.json")
+    return None, 204
 
 
 def slugify(name):

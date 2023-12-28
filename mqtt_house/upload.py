@@ -33,7 +33,7 @@ def get_device_version(config: ConfigModel, client: Client, progress: Progress) 
 def upload_data(config: ConfigModel, client: Client, filename: str, data: bytes) -> Response:
     accumulator = sha256(data)
     return client.put(
-        f"http://{slugify(config.device.name)}.{config.device.domain}/update/file",
+        f"http://{slugify(config.device.name)}.{config.device.domain}/ota/file",
         content=data,
         headers={"X-Filename": filename, "X-Filehash": accumulator.hexdigest()},
     )
@@ -63,7 +63,7 @@ def perform_upload(config: ConfigModel, client: Client, progress: Progress) -> s
             "did not respond with the current version. Please update the device first."
         )
     files = []
-    # Add the config files to upload
+    # Prepare the files to upload
     files.append(
         (
             "config.json",
@@ -80,14 +80,36 @@ def perform_upload(config: ConfigModel, client: Client, progress: Progress) -> s
     for filename in ["main.py", "microdot.py", "mqtt_as.py"]:
         with open_binary("mqtt_house.micro", filename) as in_f:
             files.append((filename, in_f.read()))
+    # Upload the inventory
+    task = progress.add_task("Uploading the inventory", total=1)
+    inventory = {}
+    for filename, data in files:
+        inventory[filename] = sha256(data).hexdigest()
+    response = client.put(
+        f"http://{slugify(config.device.name)}.{config.device.domain}/ota/inventory",
+        content=dumps(inventory).encode(),
+        headers={"X-Filehash": sha256(dumps(inventory).encode()).hexdigest()},
+    )
+    if response.status_code == codes.NO_CONTENT:
+        progress.update(task, advance=1)
+    else:
+        return f":x: [logging.level.error]Received error {response.status_code} when uploading the inventory"
     # Upload the files
-    task = progress.add_task("Uploading the configuration", total=len(files))
+    task = progress.add_task("Uploading the files", total=len(files))
     for filename, data in files:
         response = upload_data(config, client, filename, data)
         if response.status_code == codes.NO_CONTENT:
             progress.update(task, advance=1)
         else:
             return f":x: [logging.level.error]Received error {response.status_code} when uploading the {filename}."
+    # Start the update
+    task = progress.add_task("Committing the changes", total=1, start=False)
+    response = client.post(f"http://{slugify(config.device.name)}.{config.device.domain}/ota/commit")
+    progress.start_task(task)
+    if response.status_code == codes.NO_CONTENT:
+        progress.update(task, completed=1)
+    else:
+        return f":x: [logging.level.error]Received error {response.status_code} when committing the update."
     # Reset the device and wait for it to become available again.
     task = progress.add_task("Resetting the device", total=60, start=False)
     response = client.post(
@@ -124,7 +146,7 @@ def perform_upload(config: ConfigModel, client: Client, progress: Progress) -> s
 
 
 @app.command()
-def upload(config_file: FileBinaryRead):
+def deploy(config_file: FileBinaryRead):
     """Upload a configuration to the device."""
     config = ConfigModel(**safe_load(config_file))
     with Client() as client:
