@@ -22,13 +22,13 @@ def file_exists(filename):
 
 
 @server.get("/ota/about")
-def get_about(request):
+def about(request):
     """Return information about this device."""
     return {"version": "0.0.1"}
 
 
 @server.post("/ota/reset")
-def post_reset(request):
+def handle_reset(request):
     """Request that the device reset itself."""
 
     async def reset_task():
