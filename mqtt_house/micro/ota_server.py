@@ -94,7 +94,9 @@ async def commit_update(request):
             if file_exists(filename):
                 os.remove(filename)
             os.rename(f"{filename}.tmp", filename)
-        os.remove("inventory.json")
+        for filename in os.listdir("/"):
+            if filename not in inventory:
+                os.remove(filename)
         status_led.stop_activity()
         return None, 204
     else:
