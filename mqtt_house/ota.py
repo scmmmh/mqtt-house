@@ -19,7 +19,7 @@ def get_device_version(config: ConfigModel, client: Client, progress: Progress) 
     """Retrieves the device's version or None if the device could not be contacted."""
     task = progress.add_task("Checking the device version", total=1, start=False)
     try:
-        response = client.get(f"http://{slugify(config.device.name)}.{config.device.domain}/about")
+        response = client.get(f"http://{slugify(config.device.name)}.{config.device.domain}/ota/about")
         if response.status_code == codes.OK:
             return response.json()
     except TransportError:
@@ -77,7 +77,7 @@ def perform_upload(config: ConfigModel, client: Client, progress: Progress) -> s
         )
     )
     files.append(("entities.json", dumps(config.entities).encode()))
-    for filename in ["main.py", "microdot.py", "mqtt_as.py", "status_led.py"]:
+    for filename in ["main.py", "microdot.py", "mqtt_as.py", "ota_server.py", "status_led.py"]:
         with open_binary("mqtt_house.micro", filename) as in_f:
             files.append((filename, in_f.read()))
     # Upload the inventory
@@ -113,7 +113,7 @@ def perform_upload(config: ConfigModel, client: Client, progress: Progress) -> s
     # Reset the device and wait for it to become available again.
     task = progress.add_task("Resetting the device", total=60, start=False)
     response = client.post(
-        f"http://{slugify(config.device.name)}.{config.device.domain}/reset",
+        f"http://{slugify(config.device.name)}.{config.device.domain}/ota/reset",
         content=dumps(config.entities),
     )
     progress.start_task(task)
@@ -123,7 +123,7 @@ def perform_upload(config: ConfigModel, client: Client, progress: Progress) -> s
         while countdown > 0:
             sleep(1)
             try:
-                response = client.get(f"http://{slugify(config.device.name)}.{config.device.domain}/about")
+                response = client.get(f"http://{slugify(config.device.name)}.{config.device.domain}/ota/about")
                 if response.status_code == codes.OK and response.json()["version"] == "0.0.1":
                     success = True
                     break
