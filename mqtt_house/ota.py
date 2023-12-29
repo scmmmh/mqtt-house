@@ -1,6 +1,6 @@
 """CLI commands for handling configurations."""
 from hashlib import sha256
-from importlib.resources import open_binary
+from importlib import resources
 from json import dumps
 from time import sleep
 
@@ -31,11 +31,11 @@ def get_device_version(config: ConfigModel, client: Client, progress: Progress) 
 
 
 def upload_data(config: ConfigModel, client: Client, filename: str, data: bytes) -> Response:
-    accumulator = sha256(data)
+    sha256_hash = sha256(data)
     return client.put(
         f"http://{slugify(config.device.name)}.{config.device.domain}/ota/file",
         content=data,
-        headers={"X-Filename": filename, "X-Filehash": accumulator.hexdigest()},
+        headers={"X-Filename": filename, "X-Filehash": sha256_hash.hexdigest()},
     )
 
 
@@ -77,9 +77,19 @@ def perform_upload(config: ConfigModel, client: Client, progress: Progress) -> s
         )
     )
     files.append(("entities.json", dumps(config.entities).encode()))
-    for filename in ["main.py", "microdot.py", "mqtt_as.py", "ota_server.py", "status_led.py"]:
-        with open_binary("mqtt_house.micro", filename) as in_f:
-            files.append((filename, in_f.read()))
+    base_path = resources.files("mqtt_house.micro")
+    for filename in [
+        "main.py",
+        "microdot.py",
+        "mqtt_as.py",
+        "mqtt_house/__init__.py",
+        "ota_server.py",
+        "status_led.py",
+    ]:
+        item_file = base_path
+        for part in filename.split("/"):
+            item_file = item_file / part
+        files.append((filename, item_file.read_bytes()))
     # Upload the inventory
     task = progress.add_task("Uploading the inventory", total=1)
     inventory = {}

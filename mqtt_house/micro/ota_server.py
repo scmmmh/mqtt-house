@@ -14,9 +14,26 @@ server = Microdot()
 
 
 def file_exists(filename):
-    """Check if the given file exists."""
+    """Check if the given filename exists."""
+    try:
+        os.stat(filename)
+        return True
+    except OSError:
+        return False
+
+
+def is_file(filename):
+    """Check if the given filename is a file."""
     try:
         return (os.stat(filename)[0] & 0x4000) == 0
+    except OSError:
+        return False
+
+
+def is_dir(filename):
+    """Check if the given filename is a directory."""
+    try:
+        return (os.stat(filename)[0] & 0x4000) != 0
     except OSError:
         return False
 
@@ -68,15 +85,23 @@ async def update_file(request):
     status_led.start_activity()
     size = int(request.headers["Content-Length"])
     upload_hash = request.headers["X-Filehash"]
-    hash = sha256()
-    with open(f"{request.headers['X-Filename']}.tmp", "wb") as out_f:
+    filename = request.headers["X-Filename"]
+    sha256_hash = sha256()
+    filepath = filename.split("/")[:-1]
+    dirpath = ""
+    if len(filepath) > 0:
+        for part in filepath:
+            dirpath = f"{dirpath}/{part}"
+            if not is_dir(dirpath):
+                os.mkdir(dirpath)
+    with open(f"{filename}.tmp", "wb") as out_f:
         while size > 0:
             chunk = await request.stream.read(min(size, 1024))
-            hash.update(chunk)
+            sha256_hash.update(chunk)
             out_f.write(chunk)
             size -= len(chunk)
     status_led.stop_activity()
-    if binascii.hexlify(hash.digest()).decode() == upload_hash:
+    if binascii.hexlify(sha256_hash.digest()).decode() == upload_hash:
         return None, 204
     else:
         os.remove(f"{request.headers['X-Filename']}.tmp")
@@ -95,7 +120,7 @@ async def commit_update(request):
                 os.remove(filename)
             os.rename(f"{filename}.tmp", filename)
         for filename in os.listdir("/"):
-            if filename not in inventory:
+            if filename not in inventory and is_file(filename):
                 os.remove(filename)
         status_led.stop_activity()
         return None, 204
