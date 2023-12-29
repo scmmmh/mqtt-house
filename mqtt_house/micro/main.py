@@ -44,7 +44,7 @@ def post_reset(request):
 
 
 @server.put("/ota/inventory")
-async def update_file(request):
+async def update_inventory(request):
     """Upload the OTA inventory."""
     status_led.start_activity()
     size = int(request.headers["Content-Length"])

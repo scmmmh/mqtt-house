@@ -146,8 +146,8 @@ def perform_upload(config: ConfigModel, client: Client, progress: Progress) -> s
 
 
 @app.command()
-def deploy(config_file: FileBinaryRead):
-    """Upload a configuration to the device."""
+def ota_deploy(config_file: FileBinaryRead):
+    """Deploy a device via an OTA update."""
     config = ConfigModel(**safe_load(config_file))
     with Client() as client:
         with Progress() as progress:
