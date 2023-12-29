@@ -77,7 +77,7 @@ def perform_upload(config: ConfigModel, client: Client, progress: Progress) -> s
         )
     )
     files.append(("entities.json", dumps(config.entities).encode()))
-    for filename in ["main.py", "microdot.py", "mqtt_as.py"]:
+    for filename in ["main.py", "microdot.py", "mqtt_as.py", "status_led.py"]:
         with open_binary("mqtt_house.micro", filename) as in_f:
             files.append((filename, in_f.read()))
     # Upload the inventory

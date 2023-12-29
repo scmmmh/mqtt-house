@@ -9,6 +9,7 @@ from hashlib import sha256
 from machine import Pin, reset
 from microdot import Microdot, Request
 from mqtt_as import MQTTClient, config
+from status_led import status_led
 
 Request.max_content_length = 1024 * 1024
 server = Microdot()
@@ -37,6 +38,7 @@ def post_reset(request):
         await asyncio.sleep(1)
         reset()
 
+    status_led.start_indeterminate()
     asyncio.create_task(reset_task())
     return None, 202
 
@@ -44,6 +46,7 @@ def post_reset(request):
 @server.put("/ota/inventory")
 async def update_file(request):
     """Upload the OTA inventory."""
+    status_led.start_activity()
     size = int(request.headers["Content-Length"])
     upload_hash = request.headers["X-Filehash"]
     hash = sha256()
@@ -53,6 +56,7 @@ async def update_file(request):
             hash.update(chunk)
             out_f.write(chunk)
             size -= len(chunk)
+    status_led.stop_activity()
     if binascii.hexlify(hash.digest()).decode() == upload_hash:
         return None, 204
     else:
@@ -63,6 +67,7 @@ async def update_file(request):
 @server.put("/ota/file")
 async def update_file(request):
     """Update a file on the device."""
+    status_led.start_activity()
     size = int(request.headers["Content-Length"])
     upload_hash = request.headers["X-Filehash"]
     hash = sha256()
@@ -72,6 +77,7 @@ async def update_file(request):
             hash.update(chunk)
             out_f.write(chunk)
             size -= len(chunk)
+    status_led.stop_activity()
     if binascii.hexlify(hash.digest()).decode() == upload_hash:
         return None, 204
     else:
@@ -82,6 +88,7 @@ async def update_file(request):
 @server.post("/ota/commit")
 async def commit_update(request):
     """Commit the update specified by the inventory.json."""
+    status_led.start_activity()
     if file_exists("inventory.json"):
         with open("inventory.json") as in_f:
             inventory = json.load(in_f)
@@ -90,8 +97,10 @@ async def commit_update(request):
                 os.remove(filename)
             os.rename(f"{filename}.tmp", filename)
         os.remove("inventory.json")
+        status_led.stop_activity()
         return None, 204
     else:
+        status_led.stop_activity()
         return None, 404
 
 
@@ -120,7 +129,7 @@ class Entity:
 
     async def publish_state(self):
         """Publish the Entity's current state."""
-        await self._device.client.publish(
+        await self._device.publish(
             self.mqtt_topic("state"),
             json.dumps(self._state),
         )
@@ -141,8 +150,8 @@ class Light(Entity):
     async def discover(self):
         """Discover this Light Entity by publishing it to the MQTT server."""
         await super().discover()
-        await self._device.client.subscribe(self.mqtt_topic("set"))
-        await self._device.client.publish(
+        await self._device.subscribe(self.mqtt_topic("set"))
+        await self._device.publish(
             self.mqtt_topic("config"),
             json.dumps(
                 {
@@ -192,10 +201,7 @@ class Device:
         config["hostname"] = slugify(settings["device"]["name"])
         config["queue_len"] = 1
         MQTTClient.DEBUG = True
-        self.client = MQTTClient(config)
-
-        self._activity_counter = 0
-        self._activity_led = Pin("LED", Pin.OUT)
+        self._client = MQTTClient(config)
 
         self.name = settings["device"]["name"]
         self.identifier = slugify(self.name)
@@ -209,16 +215,17 @@ class Device:
 
         self._server = server
 
-    def start_activity(self):
-        """Signal starting a new activity."""
-        self._bu_activity_countery_counter = self._activity_counter + 1
-        self._activity_led.off()
+    async def subscribe(self, topic):
+        """Subscribe to the given MQTT topic."""
+        status_led.start_activity()
+        await self._client.subscribe(topic)
+        status_led.stop_activity()
 
-    def stop_activity(self):
-        """Signal that an activity has concluded."""
-        self._activity_counter = max(self._activity_counter - 1, 0)
-        if self._activity_counter == 0:
-            self._activity_led.on()
+    async def publish(self, topic, message):
+        """Publish an MQTT message."""
+        status_led.start_activity()
+        await self._client.publish(topic, message)
+        status_led.stop_activity()
 
     async def discover(self):
         """Run the discovery process for all entities and then publish their states."""
@@ -230,10 +237,11 @@ class Device:
 
     async def messages(self):
         """Handle incoming MQTT messages."""
-        async for topic, message, retained in self.client.queue:
-            self.start_activity()
+        async for topic, message, retained in self._client.queue:
             try:
+                status_led.start_activity()
                 topic = topic.decode()
+                status_led.stop_activity()
                 if topic == "homeassistant/status":
                     if message.decode() == "online":
                         await self.discover()
@@ -248,34 +256,33 @@ class Device:
                         print(topic)
             except Exception as e:
                 print(e)
-            self.stop_activity()
 
     async def connection_monitor(self):
         """Monitor the connection, running the discovery when needed."""
         while True:
-            await self.client.up.wait()
-            self.client.up.clear()
-            self.start_activity()
-            await self.client.subscribe("homeassistant/status")
+            await self._client.up.wait()
+            self._client.up.clear()
+            status_led.stop_indeterminate()
+            await self.subscribe("homeassistant/status")
             await self.discover()
-            self.stop_activity()
 
     async def start(self):
         """Start the controller."""
         try:
             while True:
                 try:
-                    self._activity_led.on()
-                    await self.client.connect()
+                    status_led.start_indeterminate()
+                    await self._client.connect()
                     asyncio.create_task(self.connection_monitor())
                     asyncio.create_task(self.messages())
                     self._server.run(port=80)
                 except OSError as e:
+                    status_led.stop_indeterminate()
                     print(e)
                     await asyncio.sleep(5)
         finally:
-            self.client.close()
-            self._activity_led.off()
+            self._client.close()
+            status_led.shutdown()
 
 
 with open("config.json") as settings_f:
