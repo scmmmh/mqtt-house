@@ -19,8 +19,14 @@ class WiFiModel(BaseModel):
     password: str
 
 
+class EntityModel(BaseModel):
+    cls: str
+    name: str
+    options: dict
+
+
 class ConfigModel(BaseModel):
     device: DeviceModel
     mqtt: MQTTModel
     wifi: WiFiModel
-    entities: list[dict]
+    entities: list[EntityModel]

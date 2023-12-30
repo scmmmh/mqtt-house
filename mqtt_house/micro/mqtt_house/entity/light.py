@@ -11,7 +11,7 @@ class SinglePinSimpleLight(Entity):
         """Initialise the Light, setting up the control pin."""
         super().__init__(device, entity)
         entity["device_class"] = "light"
-        self._pin = Pin(entity["pin"], Pin.OUT)
+        self._pin = Pin(entity["options"]["pin"], Pin.OUT)
 
     async def discover(self):
         """Discover this Light Entity by publishing it to the MQTT server."""

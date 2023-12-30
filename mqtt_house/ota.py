@@ -13,6 +13,12 @@ from mqtt_house.base import app, console
 from mqtt_house.settings import ConfigModel
 from mqtt_house.util import slugify
 
+ENTITY_FILES = {
+    "mqtt_house.entity.light.SinglePinSimpleLight": [
+        ("mqtt_house.micro", "mqtt_house/entity/light.py"),
+    ]
+}
+
 
 class OTAError(Exception):
     """An exception raised during the OTA update."""
@@ -92,7 +98,14 @@ def prepare_update(config: ConfigModel) -> tuple[list, list]:
         }
     )
     inventory.append({"fileid": "2", "filename": "entities.json"})
-    files.append({"fileid": "2", "filename": "entities.json", "data": dumps(config.entities).encode()})
+    files.append(
+        {
+            "fileid": "2",
+            "filename": "entities.json",
+            "data": dumps([entity.model_dump() for entity in config.entities]).encode(),
+        }
+    )
+    # Add the core files
     base_path = resources.files("mqtt_house.micro")
     for idx, filename in enumerate(
         [
@@ -101,9 +114,9 @@ def prepare_update(config: ConfigModel) -> tuple[list, list]:
             "mqtt_as.py",
             "mqtt_house/__init__.py",
             "mqtt_house/__about__.py",
+            "mqtt_house/device.py",
             "mqtt_house/entity/__init__.py",
             "mqtt_house/entity/base.py",
-            "mqtt_house/entity/light.py",
             "mqtt_house/util.py",
             "ota_server.py",
             "status_led.py",
@@ -114,6 +127,16 @@ def prepare_update(config: ConfigModel) -> tuple[list, list]:
             item_file = item_file / part
         inventory.append({"fileid": str(idx + 3), "filename": filename})
         files.append({"fileid": str(idx + 3), "filename": filename, "data": item_file.read_bytes()})
+    # Add the files required for the configured entities
+    core_count = len(inventory) + 1
+    for idx, entity in enumerate(config.entities):
+        if entity.cls in ENTITY_FILES:
+            for base_pkg, filename in ENTITY_FILES[entity.cls]:
+                item_file = resources.files(base_pkg)
+                for part in filename.split("/"):
+                    item_file = item_file / part
+                inventory.append({"fileid": str(idx + core_count), "filename": filename})
+                files.append({"fileid": str(idx + core_count), "filename": filename, "data": item_file.read_bytes()})
     return inventory, files
 
 
@@ -169,10 +192,7 @@ def commit_update(config: ConfigModel, client: Client, progress: Progress) -> No
 def reset(config: ConfigModel, client: Client, progress: Progress) -> None:
     """Reset the device and wait for it to reappear."""
     task = progress.add_task("Resetting the device", total=60, start=False)
-    response = client.post(
-        f"http://{slugify(config.device.name)}.{config.device.domain}/ota/reset",
-        content=dumps(config.entities),
-    )
+    response = client.post(f"http://{slugify(config.device.name)}.{config.device.domain}/ota/reset")
     progress.start_task(task)
     if response.status_code == codes.ACCEPTED:
         countdown = 60
