@@ -30,12 +30,12 @@ def get_device_version(config: ConfigModel, client: Client, progress: Progress) 
     return None
 
 
-def upload_data(config: ConfigModel, client: Client, filename: str, data: bytes) -> Response:
-    sha256_hash = sha256(data)
+def upload_data(config: ConfigModel, client: Client, item: dict) -> Response:
+    sha256_hash = sha256(item["data"])
     return client.put(
         f"http://{slugify(config.device.name)}.{config.device.domain}/ota/file",
-        content=data,
-        headers={"X-Filename": filename, "X-Filehash": sha256_hash.hexdigest()},
+        content=item["data"],
+        headers={"X-Fileid": item["fileid"], "X-Filehash": sha256_hash.hexdigest()},
     )
 
 
@@ -65,36 +65,39 @@ def perform_upload(config: ConfigModel, client: Client, progress: Progress) -> s
     files = []
     # Prepare the files to upload
     files.append(
-        (
-            "config.json",
-            dumps(
+        {
+            "fileid": "1",
+            "filename": "config.json",
+            "data": dumps(
                 {
                     "device": config.device.model_dump(),
                     "mqtt": config.mqtt.model_dump(),
                     "wifi": config.wifi.model_dump(),
                 }
             ).encode(),
-        )
+        }
     )
-    files.append(("entities.json", dumps(config.entities).encode()))
+    files.append({"fileid": "2", "filename": "entities.json", "data": dumps(config.entities).encode()})
     base_path = resources.files("mqtt_house.micro")
-    for filename in [
-        "main.py",
-        "microdot.py",
-        "mqtt_as.py",
-        "mqtt_house/__init__.py",
-        "ota_server.py",
-        "status_led.py",
-    ]:
+    for idx, filename in enumerate(
+        [
+            "main.py",
+            "microdot.py",
+            "mqtt_as.py",
+            "mqtt_house/__init__.py",
+            "ota_server.py",
+            "status_led.py",
+        ]
+    ):
         item_file = base_path
         for part in filename.split("/"):
             item_file = item_file / part
-        files.append((filename, item_file.read_bytes()))
+        files.append({"fileid": str(idx + 3), "filename": filename, "data": item_file.read_bytes()})
     # Upload the inventory
     task = progress.add_task("Uploading the inventory", total=1)
-    inventory = {}
-    for filename, data in files:
-        inventory[filename] = sha256(data).hexdigest()
+    inventory = []
+    for item in files:
+        inventory.append({"fileid": item["fileid"], "filename": item["filename"]})
     response = client.put(
         f"http://{slugify(config.device.name)}.{config.device.domain}/ota/inventory",
         content=dumps(inventory).encode(),
@@ -106,8 +109,8 @@ def perform_upload(config: ConfigModel, client: Client, progress: Progress) -> s
         return f":x: [logging.level.error]Received error {response.status_code} when uploading the inventory"
     # Upload the files
     task = progress.add_task("Uploading the files", total=len(files))
-    for filename, data in files:
-        response = upload_data(config, client, filename, data)
+    for item in files:
+        response = upload_data(config, client, item)
         if response.status_code == codes.NO_CONTENT:
             progress.update(task, advance=1)
         else:

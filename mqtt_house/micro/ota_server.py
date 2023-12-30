@@ -38,6 +38,45 @@ def is_dir(filename):
         return False
 
 
+def makedirs(dirpath):
+    """Create the directories on the dirpath, if they do not exist."""
+    if len(dirpath) > 0:
+        path = ""
+        for part in dirpath:
+            path = f"{path}/{part}"
+            if not is_dir(path):
+                os.mkdir(path)
+
+
+def listdirs(dirpath):
+    """List all directories and files underneath dirpath."""
+    filenames = []
+    dirnames = [dirpath]
+    added = True
+    while added:
+        added = False
+        for dirname in dirnames:
+            for name in os.listdir(dirname):
+                fullpath = f"{dirname}/{name}"
+                if fullpath not in filenames and is_file(fullpath):
+                    filenames.append(fullpath)
+                elif fullpath not in dirnames and is_dir(fullpath):
+                    dirnames.append(fullpath)
+                    added = True
+        dirnames.sort(key=lambda p: len(p), reverse=True)
+    filenames.sort(key=lambda p: len(p), reverse=True)
+    return dirnames, filenames
+
+
+def rmtree(dirpath):
+    """Remove the tree of files at dirpath."""
+    dirnames, filenames = listdirs(dirpath)
+    for filename in filenames:
+        os.remove(filename)
+    for dirname in dirnames:
+        os.remove(dirname)
+
+
 @server.get("/ota/about")
 def about(request):
     """Return information about this device."""
@@ -65,7 +104,9 @@ async def update_inventory(request):
     size = int(request.headers["Content-Length"])
     upload_hash = request.headers["X-Filehash"]
     hash = sha256()
-    with open("inventory.json", "wb") as out_f:
+    if not is_dir("uploads"):
+        os.mkdir("uploads")
+    with open("uploads/inventory.json", "wb") as out_f:
         while size > 0:
             chunk = await request.stream.read(min(size, 1024))
             hash.update(chunk)
@@ -75,7 +116,7 @@ async def update_inventory(request):
     if binascii.hexlify(hash.digest()).decode() == upload_hash:
         return None, 204
     else:
-        os.remove("inventory.json")
+        os.remove("uploads/inventory.json")
         return "Inventory hash does not match", 400
 
 
@@ -85,16 +126,11 @@ async def update_file(request):
     status_led.start_activity()
     size = int(request.headers["Content-Length"])
     upload_hash = request.headers["X-Filehash"]
-    filename = request.headers["X-Filename"]
+    filename = request.headers["X-Fileid"]
+    if not is_dir("uploads"):
+        os.mkdir("uploads")
     sha256_hash = sha256()
-    filepath = filename.split("/")[:-1]
-    dirpath = ""
-    if len(filepath) > 0:
-        for part in filepath:
-            dirpath = f"{dirpath}/{part}"
-            if not is_dir(dirpath):
-                os.mkdir(dirpath)
-    with open(f"{filename}.tmp", "wb") as out_f:
+    with open(f"uploads/{filename}", "wb") as out_f:
         while size > 0:
             chunk = await request.stream.read(min(size, 1024))
             sha256_hash.update(chunk)
@@ -104,26 +140,36 @@ async def update_file(request):
     if binascii.hexlify(sha256_hash.digest()).decode() == upload_hash:
         return None, 204
     else:
-        os.remove(f"{request.headers['X-Filename']}.tmp")
+        os.remove(f"uploads/{filename}")
         return "File hash does not match", 400
 
 
 @server.post("/ota/commit")
 async def commit_update(request):
-    """Commit the update specified by the inventory.json."""
-    status_led.start_activity()
-    if file_exists("inventory.json"):
-        with open("inventory.json") as in_f:
+    """Commit the update specified by the uploads/inventory.json."""
+    if file_exists("uploads/inventory.json"):
+        with open("uploads/inventory.json") as in_f:
             inventory = json.load(in_f)
-        for filename in inventory.keys():
-            if file_exists(filename):
-                os.remove(filename)
-            os.rename(f"{filename}.tmp", filename)
-        for filename in os.listdir("/"):
-            if filename not in inventory and is_file(filename):
-                os.remove(filename)
-        status_led.stop_activity()
+        for entry in inventory:
+            try:
+                status_led.start_activity()
+                if file_exists(entry["filename"]):
+                    os.remove(entry["filename"])
+                makedirs(entry["filename"].split("/")[:-1])
+                os.rename(f"uploads/{entry['fileid']}", entry["filename"])
+            except Exception as e:
+                return str(e), 500
+            finally:
+                status_led.stop_activity()
+        rmtree("uploads")
         return None, 204
     else:
-        status_led.stop_activity()
         return None, 404
+
+
+@server.post("/ota/rollback")
+def rollback_update(request):
+    """Rollback any existing, partial OTA update."""
+    if is_dir("uploads"):
+        rmtree("uploads")
+    return None, 204
