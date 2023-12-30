@@ -23,4 +23,4 @@ class ConfigModel(BaseModel):
     device: DeviceModel
     mqtt: MQTTModel
     wifi: WiFiModel
-    entities: list
+    entities: list[dict]

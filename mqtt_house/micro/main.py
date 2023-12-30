@@ -1,15 +1,12 @@
 """The main microcontroller script."""
 import asyncio
 import json
-import re
+import sys
 
-from machine import Pin
 from mqtt_as import MQTTClient, config
 from ota_server import server
 from status_led import status_led
 
-from mqtt_house.entity.base import Entity
-from mqtt_house.entity.light import Light
 from mqtt_house.util import slugify
 
 
@@ -34,10 +31,14 @@ class Device:
 
         self._entitites = []
         for entity in entities:
-            if entity["device_class"] == "light":
-                self._entitites.append(Light(self, entity))
-            else:
-                print(entity)
+            try:
+                module = entity["cls"][: entity["cls"].rfind(".")]
+                cls = entity["cls"][entity["cls"].rfind(".") + 1 :]
+                if module not in sys.modules:
+                    exec(f"import {module}")
+                self._entitites.append(getattr(sys.modules[module], cls)(self, entity))
+            except Exception as e:
+                print(e)
 
         self._server = server
 
