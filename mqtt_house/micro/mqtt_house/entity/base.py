@@ -38,13 +38,13 @@ class Entity:
             "name": self._device.name,
             "sw_version": f"v{__version__}",
         }
-        await self._device.publish(self.mqtt_topic("config"), json.dumps(config))
+        await self._device.publish(self.mqtt_topic("config"), json.dumps(config).encode())
 
     async def publish_state(self):
         """Publish the Entity's current state."""
         await self._device.publish(
             self.mqtt_topic("state"),
-            json.dumps(self._state),
+            json.dumps(self._state).encode(),
         )
 
     async def message(self, topic, message):

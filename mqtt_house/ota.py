@@ -16,7 +16,12 @@ from mqtt_house.util import slugify
 ENTITY_FILES = {
     "mqtt_house.entity.light.SinglePinSimpleLight": [
         ("mqtt_house.micro", "mqtt_house/entity/light.py"),
-    ]
+    ],
+    "mqtt_house.entity.temperature.OneWireDS18x20Temperature": [
+        ("mqtt_house.micro", "mqtt_house/entity/temperature.py"),
+        ("mqtt_house.micro", "onewire.py"),
+        ("mqtt_house.micro", "ds18x20.py"),
+    ],
 }
 
 
@@ -128,10 +133,10 @@ def prepare_update(config: ConfigModel) -> tuple[list, list]:
         inventory.append({"fileid": str(idx + 3), "filename": filename})
         files.append({"fileid": str(idx + 3), "filename": filename, "data": item_file.read_bytes()})
     # Add the files required for the configured entities
-    core_count = len(inventory) + 1
-    for idx, entity in enumerate(config.entities):
+    for entity in config.entities:
         if entity.cls in ENTITY_FILES:
-            for base_pkg, filename in ENTITY_FILES[entity.cls]:
+            core_count = len(inventory) + 1
+            for idx, (base_pkg, filename) in enumerate(ENTITY_FILES[entity.cls]):
                 item_file = resources.files(base_pkg)
                 for part in filename.split("/"):
                     item_file = item_file / part

@@ -49,6 +49,7 @@ class Device:
     async def publish(self, topic, message):
         """Publish an MQTT message."""
         status_led.start_activity()
+        print(message)
         await self._client.publish(topic, message)
         status_led.stop_activity()
 
