@@ -1,3 +1,9 @@
+"""The base Entity class."""
+import json
+
+from mqtt_house.util import slugify
+
+
 class Entity:
     """Represents a single Entity."""
 

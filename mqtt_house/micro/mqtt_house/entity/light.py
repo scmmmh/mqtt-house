@@ -1,3 +1,4 @@
+"""Entities to control lights."""
 import json
 
 from machine import Pin
