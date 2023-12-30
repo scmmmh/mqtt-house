@@ -100,6 +100,10 @@ def prepare_update(config: ConfigModel) -> tuple[list, list]:
             "microdot.py",
             "mqtt_as.py",
             "mqtt_house/__init__.py",
+            "mqtt_house/entity/__init__.py",
+            "mqtt_house/entity/base.py",
+            "mqtt_house/entity/light.py",
+            "mqtt_house/util.py",
             "ota_server.py",
             "status_led.py",
         ]
