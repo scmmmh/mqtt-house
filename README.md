@@ -4,6 +4,8 @@ A pure python project for easy deployment of HomeAssistant MQTT entities via Ras
 
 [![PyPI - Version](https://img.shields.io/pypi/v/mqtt-house.svg)](https://pypi.org/project/mqtt-house)
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/mqtt-house.svg)](https://pypi.org/project/mqtt-house)
+[![Test workflow status](https://github.com/scmmmh/mqtt-house/actions/workflows/tests.yml/badge.svg)](https://github.com/scmmmh/mqtt-house/actions/workflows/tests.yml)
+[![Test coverage](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/scmmmh/5d987fef5ad47e17d68138644e5331b5/raw/coverage.json)](https://github.com/scmmmh/mqtt-house/actions/workflows/tests.yml)
 
 -----
 
