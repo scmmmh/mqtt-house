@@ -19,7 +19,7 @@ class OneWireDS18x20Temperature(Entity):
         self._measure_task = None
 
     async def discover(self):
-        """Discover this Light Entity by publishing it to the MQTT server."""
+        """Discover this temperature Entity by publishing it to the MQTT server."""
         await super().discover()
         await self.publish_config(
             {

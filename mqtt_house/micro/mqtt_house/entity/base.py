@@ -42,11 +42,12 @@ class Entity:
 
     async def publish_state(self):
         """Publish the Entity's current state."""
-        await self._device.update_state(self._entity["name"], self._state)
-        await self._device.publish(
-            self.mqtt_topic("state"),
-            json.dumps(self._state).encode(),
-        )
+        if "device_class" in self._entity:
+            await self._device.update_state(self._entity["name"], self._state)
+            await self._device.publish(
+                self.mqtt_topic("state"),
+                json.dumps(self._state).encode(),
+            )
 
     async def message(self, topic, message):
         """Unused."""
