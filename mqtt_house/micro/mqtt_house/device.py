@@ -27,6 +27,12 @@ class Device:
         self.name = settings["device"]["name"]
         self.identifier = slugify(self.name)
 
+        try:
+            with open("state.json") as in_f:
+                self.state = json.load(in_f)
+        except OSError:
+            self.state = {}
+
         self._entitites = []
         for entity in entities:
             try:
@@ -34,7 +40,11 @@ class Device:
                 cls = entity["cls"][entity["cls"].rfind(".") + 1 :]
                 if module not in sys.modules:
                     exec(f"import {module}")
-                self._entitites.append(getattr(sys.modules[module], cls)(self, entity))
+                self._entitites.append(
+                    getattr(sys.modules[module], cls)(
+                        self, entity, self.state[entity["name"]] if entity["name"] in self.state else None
+                    )
+                )
             except Exception as e:
                 print(e)
 
@@ -52,6 +62,12 @@ class Device:
         print(message)
         await self._client.publish(topic, message)
         status_led.stop_activity()
+
+    async def update_state(self, name, state):
+        """Update the global state with the state of an entity."""
+        self.state[name] = state
+        with open("state.json", "w") as out_f:
+            json.dump(self.state, out_f)
 
     async def discover(self):
         """Run the discovery process for all entities and then publish their states."""

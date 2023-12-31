@@ -11,9 +11,9 @@ from mqtt_house.entity.base import Entity
 class OneWireDS18x20Temperature(Entity):
     """A temperature Entity measuring using one or more DS18x20 onewire sensors."""
 
-    def __init__(self, device, entity):
+    def __init__(self, device, entity, initial_state):
         """Initialise the Light, setting up the control pin."""
-        super().__init__(device, entity)
+        super().__init__(device, entity, initial_state)
         entity["device_class"] = "sensor"
         self._sensor_hub = ds18x20.DS18X20(onewire.OneWire(Pin(entity["options"]["pin"])))
         self._measure_task = None

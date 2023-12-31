@@ -7,9 +7,9 @@ from mqtt_house.entity.base import Entity
 class SinglePinSimpleLight(Entity):
     """A simple Light Entity controlled by a single pin."""
 
-    def __init__(self, device, entity):
+    def __init__(self, device, entity, initial_state):
         """Initialise the Light, setting up the control pin."""
-        super().__init__(device, entity)
+        super().__init__(device, entity, initial_state)
         entity["device_class"] = "light"
         self._pin = Pin(entity["options"]["pin"], Pin.OUT)
 
@@ -19,10 +19,12 @@ class SinglePinSimpleLight(Entity):
         await self.subscribe(self.mqtt_topic("set"))
         await self.publish_config({"device_class": "light", "schema": "json", "command_topic": self.mqtt_topic("set")})
         if self._state is None:
-            if "initial_state" in self._entity:
-                await self.message(self.mqtt_topic("set"), self._entity["initial_state"])
+            self._state = {"state": "OFF"}
+            self._pin.off()
+        else:
+            if self._state["state"] == "ON":
+                self._pin.on()
             else:
-                self._state = {"state": "OFF"}
                 self._pin.off()
 
     async def message(self, topic, message):

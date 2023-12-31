@@ -8,11 +8,11 @@ from mqtt_house.util import slugify
 class Entity:
     """Represents a single Entity."""
 
-    def __init__(self, device, entity):
+    def __init__(self, device, entity, initial_state):
         """Initialise the entity with the device and entity settings."""
         self._device = device
         self._entity = entity
-        self._state = None
+        self._state = initial_state
 
     def mqtt_topic(self, topic):
         """Return the correct MQTT topic for this entity."""
@@ -42,6 +42,7 @@ class Entity:
 
     async def publish_state(self):
         """Publish the Entity's current state."""
+        await self._device.update_state(self._entity["name"], self._state)
         await self._device.publish(
             self.mqtt_topic("state"),
             json.dumps(self._state).encode(),
