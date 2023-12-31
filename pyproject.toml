@@ -38,18 +38,19 @@ mqtt-house = "mqtt_house.cli:app"
 [tool.hatch.version]
 path = "mqtt_house/__about__.py"
 
-
-[tool.hatch.envs.default]
-extra_dependencies = ["coverage[toml]>=6.5", "pytest"]
 [tool.hatch.envs.default.scripts]
 mqtt-house = "python -m mqtt_house {args}"
+
+[tool.hatch.envs.test]
+extra-dependencies = ["coverage[toml]>=6.5", "pytest"]
+[tool.hatch.envs.test.scripts]
 test = "pytest {args:tests}"
 test-cov = "coverage run -m pytest {args:tests}"
 cov-report = ["- coverage combine", "coverage report"]
 cov = ["test-cov", "cov-report"]
 
 [[tool.hatch.envs.all.matrix]]
-python = ["3.11"]
+python = ["3.10", "3.11"]
 
 [tool.hatch.envs.lint]
 detached = true
@@ -61,7 +62,7 @@ fmt = ["black {args:.}", "ruff --fix {args:.}", "style"]
 all = ["style", "typing"]
 
 [tool.black]
-target-version = ["py37"]
+target-version = ["py310"]
 line-length = 120
 skip-string-normalization = true
 extend-exclude = '''
