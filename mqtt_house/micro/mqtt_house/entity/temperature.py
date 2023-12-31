@@ -34,6 +34,7 @@ class OneWireDS18x20Temperature(Entity):
             self._measure_task = asyncio.create_task(self.measure_task())
 
     async def measure_task(self):
+        """Background measurement task."""
         sensors = self._sensor_hub.scan()
         while True:
             self._sensor_hub.convert_temp()
