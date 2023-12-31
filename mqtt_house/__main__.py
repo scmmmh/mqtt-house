@@ -1,6 +1,5 @@
 """Run the MQTT House application."""
-from mqtt_house import ota, version  # noqa: F401
-from mqtt_house.base import app
+from mqtt_house.cli import app
 
 if __name__ == "__main__":
     app()

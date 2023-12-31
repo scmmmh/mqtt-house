@@ -35,8 +35,12 @@ Documentation = "https://github.com/unknown/mqtt-house#readme"
 Issues = "https://github.com/unknown/mqtt-house/issues"
 Source = "https://github.com/unknown/mqtt-house"
 
+[project.scripts]
+mqtt-house = "mqtt_house.cli:app"
+
 [tool.hatch.version]
 path = "mqtt_house/__about__.py"
+
 
 [tool.hatch.envs.default]
 extra_dependencies = ["coverage[toml]>=6.5", "pytest"]
