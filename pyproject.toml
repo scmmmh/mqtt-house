@@ -25,6 +25,7 @@ dependencies = [
   "typer[all]",
   "pydantic>=2,<3",
   "PyYaml>=6,<7",
+  "rshell",
 ]
 
 [project.urls]
