@@ -21,6 +21,7 @@ ENTITY_FILES = {
         ("mqtt_house.micro", "ds18x20.py"),
     ],
     "mqtt_house.entity.display.PicoInkyDisplay": [("mqtt_house.micro", "mqtt_house/entity/display.py")],
+    "mqtt_house.entity.switch.HBridgeMomentarySwitch": [("mqtt_house.micro", "mqtt_house/entity/switch.py")],
 }
 
 
