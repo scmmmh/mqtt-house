@@ -37,7 +37,7 @@ def version(config_file: FileBinaryRead):
     """Get an OTA device's version."""
     config = ConfigModel(**safe_load(config_file))
     try:
-        with Client() as client:
+        with Client(timeout=30) as client:
             version = ".".join([str(c) for c in get_device_version(config, client)])
             console(f"Device version: {version}")
     except OTAError as e:
@@ -49,7 +49,7 @@ def ota_update(config_file: FileBinaryRead):
     """Update a device via an OTA update."""
     config = ConfigModel(**safe_load(config_file))
     try:
-        with Client() as client:
+        with Client(timeout=30) as client:
             with Progress() as progress:
                 prepare_device(config, client, progress)
                 upload_files(*prepare_update(config), config, client, progress)
@@ -68,7 +68,7 @@ def reset(config_file: FileBinaryRead):
     """Reset an OTA device."""
     config = ConfigModel(**safe_load(config_file))
     try:
-        with Client() as client:
+        with Client(timeout=30) as client:
             with Progress() as progress:
                 reset_device(config, client, progress)
             console(

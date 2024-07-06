@@ -36,7 +36,9 @@ def install(config: ConfigModel, progress: Progress, board: Optional[str] = None
     if target_board:
         task = progress.add_task("Clearing old files", total=None)
         result = run(  # noqa:S603
-            ["rshell", "--quiet", "ls", "-l", f"/{target_board}"], capture_output=True, check=False  # noqa: S607
+            ["rshell", "--quiet", "ls", "-l", f"/{target_board}"],  # noqa:S607
+            capture_output=True,
+            check=False,
         )
         files = result.stdout.decode("utf-8").split("\n")
         progress.update(task, total=len(files))

@@ -13,4 +13,21 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - uses: psf/black@stable
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+
+    - name: Add .local path
+      run: |
+        echo "PATH=$HOME/.local/bin:$PATH" >> $GITHUB_ENV
+        echo "PIPX_HOME=$HOME/.local/pipx" >> $GITHUB_ENV
+        echo "PIPX_BIN_DIR=$HOME/.local/bin" >> $GITHUB_ENV
+
+    - name: Install Base Dependencies
+      run: |
+        sudo apt-get install python3-venv pipx
+        pipx install hatch
+
+    - name: Run Checks
+      run: |
+        hatch run style-check

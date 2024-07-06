@@ -1,4 +1,5 @@
 """Configuration file models."""
+
 from pydantic import BaseModel
 
 

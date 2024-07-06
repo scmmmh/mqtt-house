@@ -1,4 +1,5 @@
 """Test the basic CLI functionality."""
+
 from typer.testing import CliRunner
 
 from mqtt_house.__about__ import __version__
