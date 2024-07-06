@@ -30,4 +30,4 @@ jobs:
 
     - name: Run Checks
       run: |
-        hatch run style-check
+        hatch run check-style
