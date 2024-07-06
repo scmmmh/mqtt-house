@@ -1,4 +1,5 @@
-"""CLI commands for handling configurations."""
+"""Commands for handling devices over-the-air."""
+
 from hashlib import sha256
 from importlib import resources
 from json import dumps
@@ -6,10 +7,7 @@ from time import sleep
 
 from httpx import Client, TransportError, codes
 from rich.progress import Progress
-from typer import FileBinaryRead
-from yaml import safe_load
 
-from mqtt_house.base import app, console
 from mqtt_house.settings import ConfigModel
 from mqtt_house.util import slugify
 
@@ -26,7 +24,7 @@ ENTITY_FILES = {
 
 
 class OTAError(Exception):
-    """An exception raised during the OTA update."""
+    """An exception raised during the OTA operation."""
 
     pass
 
@@ -227,23 +225,3 @@ def reset(config: ConfigModel, client: Client, progress: Progress) -> None:
             f" http://{slugify(config.device.name)}.{config.device.domain}."
         )
         raise OTAError(msg)
-
-
-@app.command()
-def ota_deploy(config_file: FileBinaryRead):
-    """Deploy a device via an OTA update."""
-    config = ConfigModel(**safe_load(config_file))
-    try:
-        with Client() as client:
-            with Progress() as progress:
-                prepare_device(config, client, progress)
-                upload_files(*prepare_update(config), config, client, progress)
-                commit_update(config, client, progress)
-                reset(config, client, progress)
-                console(
-                    f":heavy_check_mark: [green]The device http://{slugify(config.device.name)}.{config.device.domain}"
-                    " has been updated with the new configuration."
-                )
-    except OTAError as e:
-        console(f":x: [logging.level.error]{e!s}")
-    # console(result)
