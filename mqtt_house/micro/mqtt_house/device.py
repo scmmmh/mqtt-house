@@ -13,8 +13,15 @@ class Device:
 
     def __init__(self, settings, entities, server):
         """Initialise the MQTT connection."""
+        self.settings = settings
         config["server"] = settings["mqtt"]["server"]
-        config["ssl"] = True if "mqtt" in settings and "ssl" in settings["mqtt"] and settings["mqtt"]["ssl"] else False
+        config["ssl"] = (
+            True
+            if "mqtt" in settings
+            and "ssl" in settings["mqtt"]
+            and settings["mqtt"]["ssl"]
+            else False
+        )
         config["user"] = settings["mqtt"]["user"]
         config["password"] = settings["mqtt"]["password"]
         config["ssid"] = settings["wifi"]["ssid"]
@@ -42,7 +49,13 @@ class Device:
                     exec(f"import {module}")
                 self._entitites.append(
                     getattr(sys.modules[module], cls)(
-                        self, entity, self.state[entity["name"]] if entity["name"] in self.state else None
+                        self,
+                        entity,
+                        (
+                            self.state[entity["name"]]
+                            if entity["name"] in self.state
+                            else None
+                        ),
                     )
                 )
             except Exception as e:
@@ -83,7 +96,7 @@ class Device:
                 status_led.start_activity()
                 topic = topic.decode()
                 status_led.stop_activity()
-                if topic == "homeassistant/status":
+                if topic == f"{self.settings['mqtt']['prefix']}/status":
                     if message.decode() == "online":
                         await self.discover()
                 else:
@@ -104,7 +117,7 @@ class Device:
             await self._client.up.wait()
             self._client.up.clear()
             status_led.stop_indeterminate()
-            await self.subscribe("homeassistant/status")
+            await self.subscribe(f"{self.settings['mqtt']['prefix']}/status")
             await self.discover()
 
     async def start(self):

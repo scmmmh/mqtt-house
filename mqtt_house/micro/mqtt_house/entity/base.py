@@ -1,4 +1,5 @@
 """The base Entity class."""
+
 import json
 
 from mqtt_house.__about__ import __version__
@@ -16,7 +17,7 @@ class Entity:
 
     def mqtt_topic(self, topic):
         """Return the correct MQTT topic for this entity."""
-        return f"homeassistant/{self._entity['device_class']}/{self._device.identifier}-{slugify(self._entity['name'])}/{topic}"
+        return f"{self._device.settings['mqtt']['prefix']}/{self._entity['device_class']}/{self._device.identifier}-{slugify(self._entity['name'])}/{topic}"
 
     async def subscribe(self, topic):
         """Subscribe to an MQTT topic."""
@@ -30,7 +31,9 @@ class Entity:
         """Publish the Entity's configuration to the configuration MQTT topic."""
         config["name"] = self._entity["name"]
         config["state_topic"] = self.mqtt_topic("state")
-        config["unique_id"] = slugify(f"{self._device.identifier}-{self._entity['name']}")
+        config["unique_id"] = slugify(
+            f"{self._device.identifier}-{self._entity['name']}"
+        )
         config["device"] = {
             "identifiers": [self._device.identifier],
             "manufacturer": "MQTT House",
@@ -38,7 +41,9 @@ class Entity:
             "name": self._device.name,
             "sw_version": f"v{__version__}",
         }
-        await self._device.publish(self.mqtt_topic("config"), json.dumps(config).encode())
+        await self._device.publish(
+            self.mqtt_topic("config"), json.dumps(config).encode()
+        )
 
     async def publish_state(self):
         """Publish the Entity's current state."""

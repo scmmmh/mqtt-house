@@ -13,6 +13,7 @@ class MQTTModel(BaseModel):
     user: str
     password: str
     ssl: bool = True
+    prefix: str = "homeassistant"
 
 
 class WiFiModel(BaseModel):
