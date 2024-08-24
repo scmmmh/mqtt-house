@@ -1,4 +1,5 @@
 """The main microcontroller script."""
+
 import asyncio
 import json
 
