@@ -20,6 +20,9 @@ ENTITY_FILES = {
     ],
     "mqtt_house.entity.display.PicoInkyDisplay": [("mqtt_house.micro", "mqtt_house/entity/display.py")],
     "mqtt_house.entity.switch.HBridgeMomentarySwitch": [("mqtt_house.micro", "mqtt_house/entity/switch.py")],
+    "mqtt_house.entity.binary_sensor.SinglePinBinarySensor": [
+        ("mqtt_house.micro", "mqtt_house/entity/binary_sensor.py")
+    ],
 }
 
 
