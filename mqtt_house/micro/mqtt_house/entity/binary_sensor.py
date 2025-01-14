@@ -17,6 +17,8 @@ class SinglePinBinarySensor(Entity):
             self._pin = Pin(entity["options"]["pin"], mode=Pin.IN, pull=Pin.PULL_UP)
         else:
             self._pin = Pin(entity["options"]["pin"], mode=Pin.IN, pull=Pin.PULL_DOWN)
+        if "debounce" not in entity["options"]:
+            entity["options"]["debounce"] = 0
         self._polling_task = None
 
     async def discover(self):
@@ -32,16 +34,20 @@ class SinglePinBinarySensor(Entity):
         value = -1
         while True:
             if self._pin.value() != value:
-                value = self._pin.value()
-                if value == 1:
-                    if self._entity["options"]["mode"] == "pull-up":
-                        self._state = {"state": "OFF"}
+                new_value = self._pin.value()
+                if self._entity["options"]["debounce"] > 0:
+                    await asyncio.sleep_ms(self._entity["options"]["debounce"])
+                if new_value == self._pin.value():
+                    value = new_value
+                    if value == 1:
+                        if self._entity["options"]["mode"] == "pull-up":
+                            self._state = {"state": "OFF"}
+                        else:
+                            self._state = {"state": "ON"}
                     else:
-                        self._state = {"state": "ON"}
-                else:
-                    if self._entity["options"]["mode"] == "pull-up":
-                        self._state = {"state": "ON"}
-                    else:
-                        self._state = {"state": "OFF"}
+                        if self._entity["options"]["mode"] == "pull-up":
+                            self._state = {"state": "ON"}
+                        else:
+                            self._state = {"state": "OFF"}
                 await self.publish_state()
             await asyncio.sleep_ms(5)
