@@ -48,7 +48,7 @@ class ThreePinRGBLight(Entity):
         entity["device_class"] = "light"
         self._red_pin = None
         self._green_pin = None
-        self._blue_bin = None
+        self._blue_pin = None
         if "pins" in entity["options"]:
             if "red" in entity["options"]["pins"]:
                 self._red_pin = Pin(entity["options"]["pins"]["red"], Pin.OUT)
@@ -96,7 +96,7 @@ class ThreePinRGBLight(Entity):
                     self._green_pin.on()
                 else:
                     self._green_pin.off()
-            if self._blue_bin is not None:
+            if self._blue_pin is not None:
                 if self._state["color"]["b"] > 128:
                     self._blue_pin.on()
                 else:
