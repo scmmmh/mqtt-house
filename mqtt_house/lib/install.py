@@ -15,7 +15,7 @@ from mqtt_house.settings import ConfigModel
 def get_boards() -> list[tuple[str, str]]:
     """Return a list of boards identified by rshell."""
     boards = []
-    result = run(["rshell", "--quiet", "boards"], capture_output=True, check=False)  # noqa: S603, S607
+    result = run(["rshell", "--quiet", "boards"], capture_output=True, check=False)  # noqa: S607
     for line in result.stdout.decode("utf-8").split("\n"):
         match = re.search(r"^([a-zA-Z0-9\-]+)\s*@\s*([a-zA-Z0-9\-/]+)", line)
         if match:

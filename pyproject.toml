@@ -40,7 +40,7 @@ mqtt-house = "mqtt_house.cli:app"
 path = "mqtt_house/__about__.py"
 
 [tool.hatch.envs.default]
-extra-dependencies = ["coverage[toml]>=6.5", "pytest", "ruff>=0.5.0"]
+extra-dependencies = ["coverage[toml]>=6.5", "pytest", "ruff>=0.12.12"]
 
 [tool.hatch.envs.default.scripts]
 mqtt-house = "python -m mqtt_house {args}"
