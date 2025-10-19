@@ -32,3 +32,4 @@ pipx install mqtt-house
 * [micropython-mqtt](https://github.com/peterhinch/micropython-mqtt)
 * Onewire
 * DS18x20
+* [BME280](https://github.com/robert-hh/BME280)
