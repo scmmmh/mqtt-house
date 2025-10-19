@@ -24,6 +24,21 @@ ENTITY_FILES = {
     "mqtt_house.entity.binary_sensor.SinglePinBinarySensor": [
         ("mqtt_house.micro", "mqtt_house/entity/binary_sensor.py")
     ],
+    "mqtt_house.entity.temperature.BME280Temperature": [
+        ("mqtt_house.micro", "mqtt_house/entity/temperature.py"),
+        ("mqtt_house.micro", "mqtt_house/sensors.py"),
+        ("mqtt_house.micro", "bme280_float.py"),
+    ],
+    "mqtt_house.entity.pressure.BME280Pressure": [
+        ("mqtt_house.micro", "mqtt_house/entity/pressure.py"),
+        ("mqtt_house.micro", "mqtt_house/sensors.py"),
+        ("mqtt_house.micro", "bme280_float.py"),
+    ],
+    "mqtt_house.entity.humidity.BME280Humidity": [
+        ("mqtt_house.micro", "mqtt_house/entity/humidity.py"),
+        ("mqtt_house.micro", "mqtt_house/sensors.py"),
+        ("mqtt_house.micro", "bme280_float.py"),
+    ],
 }
 
 
