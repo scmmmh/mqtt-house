@@ -1,5 +1,6 @@
 import asyncio
 import json
+import network
 import sys
 
 from mqtt_as import MQTTClient, config
@@ -26,7 +27,7 @@ class Device:
         config["password"] = settings["mqtt"]["password"]
         config["ssid"] = settings["wifi"]["ssid"]
         config["wifi_pw"] = settings["wifi"]["password"]
-        config["hostname"] = slugify(settings["device"]["name"])
+        network.hostname(slugify(settings["device"]["name"]))
         config["queue_len"] = 1
         MQTTClient.DEBUG = True
         self._client = MQTTClient(config)

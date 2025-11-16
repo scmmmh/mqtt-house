@@ -1,5 +1,6 @@
 """Commands for handling devices over-the-air."""
 
+import re
 from hashlib import sha256
 from importlib import resources
 from json import dumps
@@ -95,6 +96,29 @@ def prepare_device(config: ConfigModel, client: Client, progress: Progress) -> N
     progress.update(task, advance=1)
 
 
+def minimise_file(data: bytes):
+    """Minimise the file size, stripping comments and empty lines"""
+    result = []
+    in_comment = False
+    for line in data.decode("utf-8").split("\n"):
+        if re.match(r"\s*#.*", line):
+            continue
+        elif line.strip() == "":
+            continue
+        elif re.match(r"\s*'''.*'''\s*", line) or re.match(r'\s*""".*"""\s*', line):
+            continue
+        elif not in_comment and (re.match(r"\s*'''.*", line) or re.match(r'\s*""".*', line)):
+            in_comment = True
+            continue
+        elif in_comment and (re.match(r".*'''\s*", line) or re.match(r'.*"""\s*', line)):
+            in_comment = False
+            continue
+        elif in_comment:
+            continue
+        result.append(f"{line}\n")
+    return "".join(result).encode("utf-8")
+
+
 def prepare_update(config: ConfigModel) -> tuple[list, list]:
     """Prepare the inventory and files for upload."""
     inventory = []
@@ -136,7 +160,7 @@ def prepare_update(config: ConfigModel) -> tuple[list, list]:
             "mqtt_as.py",
             "mqtt_house/__init__.py",
             "mqtt_house/__about__.py",
-            "mqtt_house/device.py",
+            "mqtt_house/device/__init__.py",
             "mqtt_house/entity/__init__.py",
             "mqtt_house/entity/base.py",
             "mqtt_house/util.py",
@@ -148,17 +172,30 @@ def prepare_update(config: ConfigModel) -> tuple[list, list]:
         for part in filename.split("/"):
             item_file = item_file / part
         inventory.append({"fileid": str(idx + 3), "filename": filename})
-        files.append({"fileid": str(idx + 3), "filename": filename, "data": item_file.read_bytes()})
+        files.append({"fileid": str(idx + 3), "filename": filename, "data": minimise_file(item_file.read_bytes())})
     # Add the files required for the configured entities
     for entity in config.entities:
         if entity.cls in ENTITY_FILES:
             core_count = len(inventory) + 1
             for idx, (base_pkg, filename) in enumerate(ENTITY_FILES[entity.cls]):
+                # Filter duplicates
+                uploaded = False
+                for inv in inventory:
+                    if inv["filename"] == filename:
+                        uploaded = True
+                if uploaded:
+                    continue
                 item_file = resources.files(base_pkg)
                 for part in filename.split("/"):
                     item_file = item_file / part
                 inventory.append({"fileid": str(idx + core_count), "filename": filename})
-                files.append({"fileid": str(idx + core_count), "filename": filename, "data": item_file.read_bytes()})
+                files.append(
+                    {
+                        "fileid": str(idx + core_count),
+                        "filename": filename,
+                        "data": minimise_file(item_file.read_bytes()),
+                    }
+                )
     return inventory, files
 
 
