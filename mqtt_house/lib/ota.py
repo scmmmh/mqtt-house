@@ -136,6 +136,7 @@ def prepare_update(config: ConfigModel) -> tuple[list, list]:
             "filename": "config.json",
             "data": dumps(
                 {
+                    "debug": config.debug,
                     "device": config.device.model_dump(),
                     "mqtt": config.mqtt.model_dump(),
                     "wifi": config.wifi.model_dump(),

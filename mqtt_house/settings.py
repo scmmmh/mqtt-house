@@ -28,6 +28,7 @@ class EntityModel(BaseModel):
 
 
 class ConfigModel(BaseModel):
+    debug: bool = False
     device: DeviceModel
     mqtt: MQTTModel
     wifi: WiFiModel
