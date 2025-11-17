@@ -1,9 +1,12 @@
 """Configuration file models."""
 
+from typing import Literal
+
 from pydantic import BaseModel
 
 
 class DeviceModel(BaseModel):
+    type: Literal["generic"] | Literal["enviro"] = "generic"
     name: str
     domain: str
 
@@ -28,6 +31,7 @@ class EntityModel(BaseModel):
 
 
 class ConfigModel(BaseModel):
+    debug: bool = False
     device: DeviceModel
     mqtt: MQTTModel
     wifi: WiFiModel

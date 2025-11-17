@@ -1,8 +1,6 @@
 """Entities to measure temperature."""
 import asyncio
 
-from machine import Pin, I2C
-
 from mqtt_house.entity.base import Entity
 
 

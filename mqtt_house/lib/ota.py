@@ -1,5 +1,6 @@
 """Commands for handling devices over-the-air."""
 
+import re
 from hashlib import sha256
 from importlib import resources
 from json import dumps
@@ -12,10 +13,17 @@ from mqtt_house.settings import ConfigModel
 from mqtt_house.util import slugify
 
 ENTITY_FILES = {
-    "mqtt_house.entity.light.SinglePinSimpleLight": [("mqtt_house.micro", "mqtt_house/entity/light.py")],
-    "mqtt_house.entity.light.ThreePinRGBLight": [("mqtt_house.micro", "mqtt_house/entity/light.py")],
-    "mqtt_house.entity.temperature.OneWireDS18x20Temperature": [
-        ("mqtt_house.micro", "mqtt_house/entity/temperature.py"),
+    "mqtt_house.entity.light.singlepinsimple.Light": [
+        ("mqtt_house.micro", "mqtt_house/entity/light/__init__.py"),
+        ("mqtt_house.micro", "mqtt_house/entity/light/singlepinsimple.py"),
+    ],
+    "mqtt_house.entity.light.threepinrgb.Light": [
+        ("mqtt_house.micro", "mqtt_house/entity/light/__init__.py"),
+        ("mqtt_house.micro", "mqtt_house/entity/light/threepinrgb.py"),
+    ],
+    "mqtt_house.entity.temperature.onewireds18x20.Temperature": [
+        ("mqtt_house.micro", "mqtt_house/entity/temperature/__init__.py"),
+        ("mqtt_house.micro", "mqtt_house/entity/temperature/onewireds18x20.py"),
         ("mqtt_house.micro", "onewire.py"),
         ("mqtt_house.micro", "ds18x20.py"),
     ],
@@ -24,8 +32,9 @@ ENTITY_FILES = {
     "mqtt_house.entity.binary_sensor.SinglePinBinarySensor": [
         ("mqtt_house.micro", "mqtt_house/entity/binary_sensor.py")
     ],
-    "mqtt_house.entity.temperature.BME280Temperature": [
-        ("mqtt_house.micro", "mqtt_house/entity/temperature.py"),
+    "mqtt_house.entity.temperature.bme280.BME280Temperature": [
+        ("mqtt_house.micro", "mqtt_house/entity/temperature/__init__.py"),
+        ("mqtt_house.micro", "mqtt_house/entity/temperature/bme280.py"),
         ("mqtt_house.micro", "mqtt_house/sensors.py"),
         ("mqtt_house.micro", "bme280_float.py"),
     ],
@@ -95,6 +104,29 @@ def prepare_device(config: ConfigModel, client: Client, progress: Progress) -> N
     progress.update(task, advance=1)
 
 
+def minimise_file(data: bytes):
+    """Minimise the file size, stripping comments and empty lines"""
+    result = []
+    in_comment = False
+    for line in data.decode("utf-8").split("\n"):
+        if re.match(r"\s*#.*", line):
+            continue
+        elif line.strip() == "":
+            continue
+        elif re.match(r"\s*'''.*'''\s*", line) or re.match(r'\s*""".*"""\s*', line):
+            continue
+        elif not in_comment and (re.match(r"\s*'''.*", line) or re.match(r'\s*""".*', line)):
+            in_comment = True
+            continue
+        elif in_comment and (re.match(r".*'''\s*", line) or re.match(r'.*"""\s*', line)):
+            in_comment = False
+            continue
+        elif in_comment:
+            continue
+        result.append(f"{line}\n")
+    return "".join(result).encode("utf-8")
+
+
 def prepare_update(config: ConfigModel) -> tuple[list, list]:
     """Prepare the inventory and files for upload."""
     inventory = []
@@ -112,6 +144,7 @@ def prepare_update(config: ConfigModel) -> tuple[list, list]:
             "filename": "config.json",
             "data": dumps(
                 {
+                    "debug": config.debug,
                     "device": config.device.model_dump(),
                     "mqtt": config.mqtt.model_dump(),
                     "wifi": config.wifi.model_dump(),
@@ -128,37 +161,52 @@ def prepare_update(config: ConfigModel) -> tuple[list, list]:
         }
     )
     # Add the core files
+    base_files = [
+        "main.py",
+        "microdot.py",
+        "mqtt_as.py",
+        "mqtt_house/__init__.py",
+        "mqtt_house/__about__.py",
+        "mqtt_house/device/__init__.py",
+        "mqtt_house/device/generic.py",
+        "mqtt_house/entity/__init__.py",
+        "mqtt_house/entity/base.py",
+        "mqtt_house/util.py",
+        "ota_server.py",
+        "status_led.py",
+    ]
+    if config.device.type == "enviro":
+        base_files.append("mqtt_house/device/enviro.py")
     base_path = resources.files("mqtt_house.micro")
-    for idx, filename in enumerate(
-        [
-            "main.py",
-            "microdot.py",
-            "mqtt_as.py",
-            "mqtt_house/__init__.py",
-            "mqtt_house/__about__.py",
-            "mqtt_house/device.py",
-            "mqtt_house/entity/__init__.py",
-            "mqtt_house/entity/base.py",
-            "mqtt_house/util.py",
-            "ota_server.py",
-            "status_led.py",
-        ]
-    ):
+    for idx, filename in enumerate(base_files):
         item_file = base_path
         for part in filename.split("/"):
             item_file = item_file / part
         inventory.append({"fileid": str(idx + 3), "filename": filename})
-        files.append({"fileid": str(idx + 3), "filename": filename, "data": item_file.read_bytes()})
-    # Add the files required for the configured entities
+        files.append({"fileid": str(idx + 3), "filename": filename, "data": minimise_file(item_file.read_bytes())})
+    # Add the files required for the configured device and entities
     for entity in config.entities:
         if entity.cls in ENTITY_FILES:
             core_count = len(inventory) + 1
             for idx, (base_pkg, filename) in enumerate(ENTITY_FILES[entity.cls]):
+                # Filter duplicates
+                uploaded = False
+                for inv in inventory:
+                    if inv["filename"] == filename:
+                        uploaded = True
+                if uploaded:
+                    continue
                 item_file = resources.files(base_pkg)
                 for part in filename.split("/"):
                     item_file = item_file / part
                 inventory.append({"fileid": str(idx + core_count), "filename": filename})
-                files.append({"fileid": str(idx + core_count), "filename": filename, "data": item_file.read_bytes()})
+                files.append(
+                    {
+                        "fileid": str(idx + core_count),
+                        "filename": filename,
+                        "data": minimise_file(item_file.read_bytes()),
+                    }
+                )
     return inventory, files
 
 
