@@ -15,8 +15,9 @@ from mqtt_house.util import slugify
 ENTITY_FILES = {
     "mqtt_house.entity.light.SinglePinSimpleLight": [("mqtt_house.micro", "mqtt_house/entity/light.py")],
     "mqtt_house.entity.light.ThreePinRGBLight": [("mqtt_house.micro", "mqtt_house/entity/light.py")],
-    "mqtt_house.entity.temperature.OneWireDS18x20Temperature": [
-        ("mqtt_house.micro", "mqtt_house/entity/temperature.py"),
+    "mqtt_house.entity.temperature.onewireds18x20.Temperature": [
+        ("mqtt_house.micro", "mqtt_house/entity/temperature/__init__.py"),
+        ("mqtt_house.micro", "mqtt_house/entity/temperature/onewireds18x20.py"),
         ("mqtt_house.micro", "onewire.py"),
         ("mqtt_house.micro", "ds18x20.py"),
     ],
@@ -25,8 +26,9 @@ ENTITY_FILES = {
     "mqtt_house.entity.binary_sensor.SinglePinBinarySensor": [
         ("mqtt_house.micro", "mqtt_house/entity/binary_sensor.py")
     ],
-    "mqtt_house.entity.temperature.BME280Temperature": [
-        ("mqtt_house.micro", "mqtt_house/entity/temperature.py"),
+    "mqtt_house.entity.temperature.bme280.BME280Temperature": [
+        ("mqtt_house.micro", "mqtt_house/entity/temperature/__init__.py"),
+        ("mqtt_house.micro", "mqtt_house/entity/temperature/bme280.py"),
         ("mqtt_house.micro", "mqtt_house/sensors.py"),
         ("mqtt_house.micro", "bme280_float.py"),
     ],
