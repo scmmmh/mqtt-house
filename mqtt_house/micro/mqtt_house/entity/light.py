@@ -17,7 +17,11 @@ class SinglePinSimpleLight(Entity):
         """Discover this Light Entity by publishing it to the MQTT server."""
         await super().discover()
         await self.subscribe(self.mqtt_topic("set"))
-        await self.publish_config({"device_class": "light", "schema": "json", "command_topic": self.mqtt_topic("set")})
+        await self.publish_config({
+            "device_class": "light",
+            "schema": "json",
+            "brightness": False,
+            "command_topic": self.mqtt_topic("set")})
         if self._state is None:
             self._state = {"state": "OFF"}
             self._pin.off()

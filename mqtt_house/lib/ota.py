@@ -153,28 +153,30 @@ def prepare_update(config: ConfigModel) -> tuple[list, list]:
         }
     )
     # Add the core files
+    base_files = [
+        "main.py",
+        "microdot.py",
+        "mqtt_as.py",
+        "mqtt_house/__init__.py",
+        "mqtt_house/__about__.py",
+        "mqtt_house/device/__init__.py",
+        "mqtt_house/device/generic.py",
+        "mqtt_house/entity/__init__.py",
+        "mqtt_house/entity/base.py",
+        "mqtt_house/util.py",
+        "ota_server.py",
+        "status_led.py",
+    ]
+    if config.device.type == "enviro":
+        base_files.append("mqtt_house/device/enviro.py")
     base_path = resources.files("mqtt_house.micro")
-    for idx, filename in enumerate(
-        [
-            "main.py",
-            "microdot.py",
-            "mqtt_as.py",
-            "mqtt_house/__init__.py",
-            "mqtt_house/__about__.py",
-            "mqtt_house/device/__init__.py",
-            "mqtt_house/entity/__init__.py",
-            "mqtt_house/entity/base.py",
-            "mqtt_house/util.py",
-            "ota_server.py",
-            "status_led.py",
-        ]
-    ):
+    for idx, filename in enumerate(base_files):
         item_file = base_path
         for part in filename.split("/"):
             item_file = item_file / part
         inventory.append({"fileid": str(idx + 3), "filename": filename})
         files.append({"fileid": str(idx + 3), "filename": filename, "data": minimise_file(item_file.read_bytes())})
-    # Add the files required for the configured entities
+    # Add the files required for the configured device and entities
     for entity in config.entities:
         if entity.cls in ENTITY_FILES:
             core_count = len(inventory) + 1
