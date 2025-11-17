@@ -13,8 +13,14 @@ from mqtt_house.settings import ConfigModel
 from mqtt_house.util import slugify
 
 ENTITY_FILES = {
-    "mqtt_house.entity.light.SinglePinSimpleLight": [("mqtt_house.micro", "mqtt_house/entity/light.py")],
-    "mqtt_house.entity.light.ThreePinRGBLight": [("mqtt_house.micro", "mqtt_house/entity/light.py")],
+    "mqtt_house.entity.light.singlepinsimple.Light": [
+        ("mqtt_house.micro", "mqtt_house/entity/light/__init__.py"),
+        ("mqtt_house.micro", "mqtt_house/entity/light/singlepinsimple.py"),
+    ],
+    "mqtt_house.entity.light.threepinrgb.Light": [
+        ("mqtt_house.micro", "mqtt_house/entity/light/__init__.py"),
+        ("mqtt_house.micro", "mqtt_house/entity/light/threepinrgb.py"),
+    ],
     "mqtt_house.entity.temperature.onewireds18x20.Temperature": [
         ("mqtt_house.micro", "mqtt_house/entity/temperature/__init__.py"),
         ("mqtt_house.micro", "mqtt_house/entity/temperature/onewireds18x20.py"),
