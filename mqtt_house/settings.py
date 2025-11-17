@@ -1,9 +1,12 @@
 """Configuration file models."""
 
+from typing import Literal
+
 from pydantic import BaseModel
 
 
 class DeviceModel(BaseModel):
+    type: Literal["generic"] | Literal["enviro"] = "generic"
     name: str
     domain: str
 
