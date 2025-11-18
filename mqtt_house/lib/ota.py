@@ -87,15 +87,22 @@ def get_device_version(config: ConfigModel, client: Client, host: str | None = N
         raise OTAError(msg) from err
 
 
-def prepare_device(config: ConfigModel, client: Client, progress: Progress, host: str | None = None) -> None:
+def prepare_device(
+    config: ConfigModel,
+    client: Client,
+    progress: Progress,
+    host: str | None = None,
+    upgrade_major_version: bool = False,  # noqa:FBT001,FBT002
+) -> None:
     """Prepare the device for the OTA update."""
     task = progress.add_task("Preparing the device", total=2)
     # Check the device version allows an upgrade
     version = get_device_version(config, client, host=host)
-    if version[0] != 0:
+    if version[0] != int(__version__.split(".")[0]) and not upgrade_major_version:
         msg = (
             f"The device at {get_device_host(config, host=host)} "
-            "has a major version mismatch and cannot be updated over-the-air."
+            "has a major version mismatch and cannot be updated over-the-air. "
+            "To override this, run the update with the --upgrade-major-version flag."
         )
         raise OTAError(msg)
     progress.update(task, advance=1)
@@ -284,9 +291,17 @@ def reset(config: ConfigModel, client: Client, progress: Progress, host: str | N
             sleep(1)
             try:
                 response = client.get(f"{get_device_host(config, host=host)}/ota/about")
-                if response.status_code == codes.OK and response.json()["version"] == __version__:
-                    success = True
-                    break
+                if response.status_code == codes.OK:
+                    device_version = response.json()["version"]
+                    if device_version == __version__:
+                        success = True
+                        break
+                    else:
+                        msg = (
+                            f"The device at {get_device_host(config, host=host)} reported running version "
+                            f"{device_version} after the update, but was expected to be running {__version__}."
+                        )
+                        raise OTAError(msg)
             except TransportError:
                 pass
             finally:

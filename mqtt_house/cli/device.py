@@ -46,13 +46,17 @@ def version(config_file: FileBinaryRead, host: str | None = None):
 
 
 @group.command()
-def ota_update(config_file: FileBinaryRead, host: str | None = None):
+def ota_update(
+    config_file: FileBinaryRead,
+    host: str | None = None,
+    upgrade_major_version: bool = False,  # noqa:FBT001,FBT002
+):
     """Update a device via an OTA update."""
     config = ConfigModel(**safe_load(config_file))
     try:
         with Client(timeout=30) as client:
             with Progress() as progress:
-                prepare_device(config, client, progress, host=host)
+                prepare_device(config, client, progress, host=host, upgrade_major_version=upgrade_major_version)
                 upload_files(*prepare_update(config), config, client, progress, host=host)
                 commit_update(config, client, progress, host=host)
                 reset_device(config, client, progress, host=host)
