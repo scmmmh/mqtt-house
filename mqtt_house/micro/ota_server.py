@@ -8,6 +8,7 @@ from machine import reset
 from microdot import Microdot, Request
 from status_led import status_led
 
+from mqtt_house.__about__ import __version__
 
 Request.max_content_length = 1024 * 1024
 server = Microdot()
@@ -80,7 +81,7 @@ def rmtree(dirpath):
 @server.get("/ota/about")
 def about(request):
     """Return information about this device."""
-    return {"version": "0.0.1"}
+    return {"version": __version__}
 
 
 @server.post("/ota/reset")
