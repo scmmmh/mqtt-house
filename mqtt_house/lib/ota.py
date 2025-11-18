@@ -9,6 +9,7 @@ from time import sleep
 from httpx import Client, TransportError, codes
 from rich.progress import Progress
 
+from mqtt_house.__about__ import __version__
 from mqtt_house.settings import ConfigModel
 from mqtt_house.util import slugify
 
@@ -283,7 +284,7 @@ def reset(config: ConfigModel, client: Client, progress: Progress, host: str | N
             sleep(1)
             try:
                 response = client.get(f"{get_device_host(config, host=host)}/ota/about")
-                if response.status_code == codes.OK and response.json()["version"] == "0.0.1":
+                if response.status_code == codes.OK and response.json()["version"] == __version__:
                     success = True
                     break
             except TransportError:
