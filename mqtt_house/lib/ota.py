@@ -63,49 +63,52 @@ class OTAError(Exception):
     pass
 
 
-def get_device_version(config: ConfigModel, client: Client) -> dict | None:
+def get_device_host(config: ConfigModel, host: str | None = None) -> str:
+    """Get the device hostname."""
+    if host is not None:
+        return f"http://{host}"
+    return f"http://{slugify(config.device.name)}.{config.device.domain}"
+
+
+def get_device_version(config: ConfigModel, client: Client, host: str | None = None) -> list[int]:
     """Retrieves the device's version or None if the device could not be contacted."""
     try:
-        response = client.get(f"http://{slugify(config.device.name)}.{config.device.domain}/ota/about")
+        response = client.get(f"{get_device_host(config, host=host)}/ota/about")
         if response.status_code == codes.OK:
             return [int(c) for c in response.json()["version"].split(".")]
-        msg = (
-            f"Failed to get the device version from http://{slugify(config.device.name)}.{config.device.domain} "
-            "({response.status_code})."
-        )
-
+        msg = f"Failed to get the device version from {get_device_host(config, host=host)} ({{response.status_code}})."
         raise OTAError(msg)
     except TransportError as err:
-        msg = f"The device could not be reached at http://{slugify(config.device.name)}.{config.device.domain}."
+        msg = f"The device could not be reached at {get_device_host(config, host=host)}."
         raise OTAError(msg) from err
     except KeyError as err:
-        msg = f"Failed to get a valid device version from http://{slugify(config.device.name)}.{config.device.domain}."
+        msg = f"Failed to get a valid device version from {get_device_host(config, host=host)}."
         raise OTAError(msg) from err
 
 
-def prepare_device(config: ConfigModel, client: Client, progress: Progress) -> None:
+def prepare_device(config: ConfigModel, client: Client, progress: Progress, host: str | None = None) -> None:
     """Prepare the device for the OTA update."""
     task = progress.add_task("Preparing the device", total=2)
     # Check the device version allows an upgrade
-    version = get_device_version(config, client)
+    version = get_device_version(config, client, host=host)
     if version[0] != 0:
         msg = (
-            f"The device at http://{slugify(config.device.name)}.{config.device.domain} "
+            f"The device at {get_device_host(config, host=host)} "
             "has a major version mismatch and cannot be updated over-the-air."
         )
         raise OTAError(msg)
     progress.update(task, advance=1)
     # Rollback any existing upgrade
     try:
-        response = client.post(f"http://{slugify(config.device.name)}.{config.device.domain}/ota/rollback")
+        response = client.post(f"{get_device_host(config, host=host)}/ota/rollback")
         if response.status_code != codes.NO_CONTENT:
             msg = (
-                f"Preparing the device at http://{slugify(config.device.name)}.{config.device.domain} "
+                f"Preparing the device at {get_device_host(config, host=host)} "
                 f"for the update failed ({response.status_code})"
             )
             raise OTAError(msg)
     except TransportError as err:
-        msg = f"The device could not be reached at http://{slugify(config.device.name)}.{config.device.domain}."
+        msg = f"The device could not be reached at {get_device_host(config, host=host)}."
         raise OTAError(msg) from err
     progress.update(task, advance=1)
 
@@ -216,59 +219,62 @@ def prepare_update(config: ConfigModel) -> tuple[list, list]:
     return inventory, files
 
 
-def upload_file(item: dict, config: ConfigModel, client: Client, endpoint: str = "/file") -> None:
+def upload_file(
+    item: dict, config: ConfigModel, client: Client, endpoint: str = "/file", host: str | None = None
+) -> None:
     """Upload a single file to the device."""
     sha256_hash = sha256(item["data"])
     try:
         response = client.put(
-            f"http://{slugify(config.device.name)}.{config.device.domain}/ota{endpoint}",
+            f"{get_device_host(config, host=host)}/ota{endpoint}",
             content=item["data"],
             headers={"X-Fileid": item["fileid"], "X-Filehash": sha256_hash.hexdigest()},
         )
         if response.status_code != codes.NO_CONTENT:
             msg = (
-                f"Failed to upload {item['filename']} to http://{slugify(config.device.name)}.{config.device.domain}"
-                f" ({response.status_code})."
+                f"Failed to upload {item['filename']} to {get_device_host(config, host=host)} ({response.status_code})."
             )
             raise OTAError(msg)
     except TransportError as err:
-        msg = f"The device could not be reached at http://{slugify(config.device.name)}.{config.device.domain}."
+        msg = f"The device could not be reached at {get_device_host(config, host=host)}."
         raise OTAError(msg) from err
 
 
-def upload_files(inventory: list, files: list, config: ConfigModel, client: Client, progress: Progress) -> None:
+def upload_files(
+    inventory: list, files: list, config: ConfigModel, client: Client, progress: Progress, host: str | None = None
+) -> None:
     """Upload all files to the device."""
     task = progress.add_task("Uploading the new files", total=len(files) + 1)
-    upload_file({"fileid": "-1", "data": dumps(inventory).encode()}, config, client, endpoint="/inventory")
+    upload_file({"fileid": "-1", "data": dumps(inventory).encode()}, config, client, endpoint="/inventory", host=host)
     progress.update(task, advance=1)
     for item in files:
-        upload_file(item, config, client)
+        upload_file(item, config, client, host=host)
         progress.update(task, advance=1)
 
 
-def commit_update(config: ConfigModel, client: Client, progress: Progress) -> None:
+def commit_update(config: ConfigModel, client: Client, progress: Progress, host: str | None = None) -> None:
     """Commit all uploaded changes."""
     task = progress.add_task("Committing the changes", total=1, start=False)
     try:
-        response = client.post(f"http://{slugify(config.device.name)}.{config.device.domain}/ota/commit")
+        response = client.post(f"{get_device_host(config, host=host)}/ota/commit")
         progress.start_task(task)
         if response.status_code == codes.NO_CONTENT:
             progress.update(task, completed=1)
         else:
             msg = (
-                f"The update to http://{slugify(config.device.name)}.{config.device.domain} failed to"
+                f"The update to {get_device_host(config, host=host)} failed to"
                 f" commit correctly ({response.status_code})."
             )
             raise OTAError(msg)
     except TransportError as err:
-        msg = f"The device could not be reached at http://{slugify(config.device.name)}.{config.device.domain}."
+        msg = f"The device could not be reached at {get_device_host(config, host=host)}."
         raise OTAError(msg) from err
 
 
-def reset(config: ConfigModel, client: Client, progress: Progress) -> None:
+def reset(config: ConfigModel, client: Client, progress: Progress, host: str | None = None) -> None:
     """Reset the device and wait for it to reappear."""
     task = progress.add_task("Resetting the device", total=60, start=False)
-    response = client.post(f"http://{slugify(config.device.name)}.{config.device.domain}/ota/reset")
+    response = client.post(f"{get_device_host(config, host=host)}/ota/reset")
     progress.start_task(task)
     if response.status_code == codes.ACCEPTED:
         countdown = 60
@@ -276,7 +282,7 @@ def reset(config: ConfigModel, client: Client, progress: Progress) -> None:
         while countdown > 0:
             sleep(1)
             try:
-                response = client.get(f"http://{slugify(config.device.name)}.{config.device.domain}/ota/about")
+                response = client.get(f"{get_device_host(config, host=host)}/ota/about")
                 if response.status_code == codes.OK and response.json()["version"] == "0.0.1":
                     success = True
                     break
@@ -288,13 +294,13 @@ def reset(config: ConfigModel, client: Client, progress: Progress) -> None:
         progress.update(task, completed=60)
         if not success:
             msg = (
-                f"The device at http://{slugify(config.device.name)}.{config.device.domain}"
+                f"The device at {get_device_host(config, host=host)}"
                 " did not reappear within one minute after resetting."
             )
             raise OTAError(msg)
     else:
         msg = (
             f"Received error {response.status_code} when trying to reset the device at"
-            f" http://{slugify(config.device.name)}.{config.device.domain}."
+            f" {get_device_host(config, host=host)}."
         )
         raise OTAError(msg)
