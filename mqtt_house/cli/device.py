@@ -12,6 +12,7 @@ from mqtt_house.lib.install import install as install_device
 from mqtt_house.lib.ota import (
     OTAError,
     commit_update,
+    get_device_host,
     get_device_version,
     prepare_device,
     prepare_update,
@@ -33,30 +34,30 @@ def install(config_file: FileBinaryRead, board: Optional[str] = None) -> None:
 
 
 @group.command()
-def version(config_file: FileBinaryRead):
+def version(config_file: FileBinaryRead, host: str | None = None):
     """Get an OTA device's version."""
     config = ConfigModel(**safe_load(config_file))
     try:
         with Client(timeout=30) as client:
-            version = ".".join([str(c) for c in get_device_version(config, client)])
+            version = ".".join([str(c) for c in get_device_version(config, client, host=host)])
             console(f"Device version: {version}")
     except OTAError as e:
         console(f":x: [logging.level.error]{e!s}")
 
 
 @group.command()
-def ota_update(config_file: FileBinaryRead):
+def ota_update(config_file: FileBinaryRead, host: str | None = None):
     """Update a device via an OTA update."""
     config = ConfigModel(**safe_load(config_file))
     try:
         with Client(timeout=30) as client:
             with Progress() as progress:
-                prepare_device(config, client, progress)
-                upload_files(*prepare_update(config), config, client, progress)
-                commit_update(config, client, progress)
-                reset_device(config, client, progress)
+                prepare_device(config, client, progress, host=host)
+                upload_files(*prepare_update(config), config, client, progress, host=host)
+                commit_update(config, client, progress, host=host)
+                reset_device(config, client, progress, host=host)
             console(
-                f":heavy_check_mark: [green]The device http://{slugify(config.device.name)}.{config.device.domain}"
+                f":heavy_check_mark: [green]The device {get_device_host(config, host=host)}"
                 " has been updated with the new configuration."
             )
     except OTAError as e:
@@ -64,13 +65,13 @@ def ota_update(config_file: FileBinaryRead):
 
 
 @group.command()
-def reset(config_file: FileBinaryRead):
+def reset(config_file: FileBinaryRead, host: str | None = None):
     """Reset an OTA device."""
     config = ConfigModel(**safe_load(config_file))
     try:
         with Client(timeout=30) as client:
             with Progress() as progress:
-                reset_device(config, client, progress)
+                reset_device(config, client, progress, host=host)
             console(
                 f":heavy_check_mark: [green]The device http://{slugify(config.device.name)}.{config.device.domain}"
                 " has been reset."
