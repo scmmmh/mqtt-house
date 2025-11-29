@@ -4,7 +4,7 @@ from machine import Pin
 from mqtt_house.entity.base import Entity
 
 
-class SinglePinSimpleLight(Entity):
+class Light(Entity):
     """A simple Light Entity controlled by a single pin."""
 
     def __init__(self, device, entity, initial_state):
