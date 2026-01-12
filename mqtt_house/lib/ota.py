@@ -55,6 +55,10 @@ ENTITY_FILES = {
         ("mqtt_house.micro", "mqtt_house/sensors.py"),
         ("mqtt_house.micro", "bme280_float.py"),
     ],
+    "mqtt_house.entity.sensor.adc.ADCSensor": [
+        ("mqtt_house.micro", "mqtt_house/entity/sensor/__init__.py"),
+        ("mqtt_house.micro", "mqtt_house/entity/sensor/adc.py"),
+    ],
 }
 
 
