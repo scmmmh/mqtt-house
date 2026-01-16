@@ -59,6 +59,10 @@ ENTITY_FILES = {
         ("mqtt_house.micro", "mqtt_house/entity/sensor/__init__.py"),
         ("mqtt_house.micro", "mqtt_house/entity/sensor/adc.py"),
     ],
+    "mqtt_house.entity.sensor.multipinenum.Sensor": [
+        ("mqtt_house.micro", "mqtt_house/entity/sensor/__init__.py"),
+        ("mqtt_house.micro", "mqtt_house/entity/sensor/multipinenum.py"),
+    ],
 }
 
 

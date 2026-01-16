@@ -1,24 +1,3 @@
-# """The main microcontroller script."""
-
-# from machine import ADC, Pin
-# import time
-
-# # Define a function to map a value from one range to another
-# def map_value(x, in_min, in_max, out_min, out_max):
-#     return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min
-
-# # Initialize the analog pin for reading
-# adc = ADC(Pin(26))  # Corresponds to GP26, which is ADC0 on the Pico
-
-# # Infinite loop
-# while True:
-#     adc_value = adc.read_u16() >> 4  # Convert 16-bit to 12-bit by right shifting 4 bits
-#     speed = map_value(adc_value, 11, 4095, 127, 0)
-
-#     print("Analog: {}, Speed: {}".format(adc_value, round(speed)))
-
-#     # Wait for a second before repeating the loop:
-#     time.sleep(1)
 import asyncio
 import math
 from machine import ADC, Pin
