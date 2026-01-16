@@ -1,3 +1,4 @@
+"""An ADC sensor."""
 import asyncio
 import math
 from machine import ADC, Pin
@@ -6,6 +7,7 @@ from mqtt_house.entity.base import Entity
 
 
 class ADCSensor(Entity):
+    """A sensor connected to one of the ADC pins."""
 
     def __init__(self, device, entity, initial_state):
         """Initialise the Entity, setting up the ADC device."""
