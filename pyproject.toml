@@ -23,7 +23,7 @@ dependencies = [
   "fastapi[all]",
   "httpx",
   "typer[all]",
-  "pydantic>=2,<3",
+  "pydantic>=2.13.0,<3",
   "PyYaml>=6,<7",
   "rshell",
 ]
