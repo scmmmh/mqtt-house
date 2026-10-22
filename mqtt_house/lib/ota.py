@@ -202,6 +202,8 @@ def prepare_update(config: ConfigModel) -> tuple[list, list]:
     ]
     if config.device.type == "enviro":
         base_files.append("mqtt_house/device/enviro.py")
+    elif config.device.type == "yukon":
+        pass
     base_path = resources.files("mqtt_house.micro")
     for idx, filename in enumerate(base_files):
         item_file = base_path

@@ -5,8 +5,20 @@ from typing import Literal
 from pydantic import BaseModel
 
 
-class DeviceModel(BaseModel):
-    type: Literal["generic"] | Literal["enviro"] = "generic"
+class GenericDeviceModel(BaseModel):
+    type: Literal["generic"] = "generic"
+    name: str
+    domain: str
+
+
+class EnviroDeviceModel(BaseModel):
+    type: Literal["enviro"] = "enviro"
+    name: str
+    domain: str
+
+
+class YukonDeviceModel(BaseModel):
+    type: Literal["yukon"] = "yukon"
     name: str
     domain: str
 
@@ -32,7 +44,7 @@ class EntityModel(BaseModel):
 
 class ConfigModel(BaseModel):
     debug: bool = False
-    device: DeviceModel
+    device: GenericDeviceModel | EnviroDeviceModel | YukonDeviceModel
     mqtt: MQTTModel
     wifi: WiFiModel
     entities: list[EntityModel]

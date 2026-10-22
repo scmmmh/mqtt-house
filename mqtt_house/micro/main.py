@@ -14,5 +14,7 @@ with open("config.json") as settings_f:
             from mqtt_house.device.generic import Device
         elif settings["device"]["type"] == "enviro":
             from mqtt_house.device.enviro import EnviroDevice as Device
+        elif settings["device"]["type"] == "yukon":
+            from mqtt_house.device.yukon import YukonDevice as Device
         controller = Device(settings, entities, server)
         asyncio.run(controller.start())
