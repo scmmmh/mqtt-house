@@ -27,6 +27,7 @@ class ADCSensor(Entity):
             {
                 "expire_after": 600,
                 "value_template": "{{ value_json.value }}",
+                "device_class": "sensor",
                 "suggested_display_precision": 0,
             }
         )
